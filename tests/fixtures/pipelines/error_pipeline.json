@@ -1,0 +1,96 @@
+{
+    "name": "error_pipeline",
+    "description": "A pipeline configuration deliberately designed to trigger various errors for testing",
+    "version": "1.0",
+    "parallel_execution": false,
+    "continue_on_error": false,
+    "timeout": 10,
+    "stages": [
+        {
+            "name": "invalid_input",
+            "type": "HttpInputStage",
+            "config": {
+                "url": "https://nonexistent-domain-for-testing-12345.com",
+                "timeout": 2,
+                "retry_count": 1
+            }
+        },
+        {
+            "name": "schema_violation",
+            "type": "SchemaValidationStage",
+            "config": {
+                "schema_path": "nonexistent_schema.json",
+                "strict_validation": true
+            }
+        },
+        {
+            "name": "timeout_stage",
+            "type": "SlowOperationStage",
+            "config": {
+                "operation_time": 15,
+                "stage_timeout": 5
+            }
+        },
+        {
+            "name": "memory_hog",
+            "type": "MemoryIntensiveStage",
+            "config": {
+                "allocation_size_mb": 1000,
+                "allocation_type": "continuous"
+            }
+        },
+        {
+            "name": "missing_dependency",
+            "type": "ExternalDependencyStage",
+            "config": {
+                "dependencies": ["nonexistent_package"],
+                "fail_on_missing": true
+            }
+        },
+        {
+            "name": "invalid_data_reference",
+            "type": "DataReferenceStage",
+            "config": {
+                "reference_fields": ["nonexistent.field.path", "another.missing.field"],
+                "strict_references": true
+            }
+        },
+        {
+            "name": "permission_error",
+            "type": "FileSystemStage",
+            "config": {
+                "operation": "write",
+                "path": "/root/test_file.txt",
+                "content": "This will fail due to permissions"
+            }
+        },
+        {
+            "name": "syntax_error",
+            "type": "DynamicCodeStage",
+            "config": {
+                "code": "def broken_function( print('This has a syntax error'",
+                "execute": true
+            }
+        },
+        {
+            "name": "circular_reference",
+            "type": "ConditionalBranchStage",
+            "config": {
+                "conditions": [
+                    {
+                        "field": "status",
+                        "operator": "equals",
+                        "value": "error",
+                        "next_stage": "circular_reference"
+                    }
+                ],
+                "default_stage": "circular_reference"
+            }
+        },
+        {
+            "name": "invalid_stage_type",
+            "type": "NonExistentStageType",
+            "config": {}
+        }
+    ]
+}

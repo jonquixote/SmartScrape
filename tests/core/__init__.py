@@ -1,0 +1,1 @@
+# tests/core package for SmartScrape core components testing

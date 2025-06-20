@@ -1,0 +1,60 @@
+{
+    "name": "validation_pipeline",
+    "description": "A pipeline configuration for content validation",
+    "version": "1.0",
+    "parallel_execution": false,
+    "continue_on_error": true,
+    "timeout": 20,
+    "stages": [
+        {
+            "name": "input_data_loader",
+            "type": "JsonInputStage",
+            "config": {
+                "schema_validation": true,
+                "required_fields": ["url", "content", "metadata"]
+            }
+        },
+        {
+            "name": "schema_validation",
+            "type": "SchemaValidationStage",
+            "config": {
+                "schema_path": "schemas/content_schema.json",
+                "add_validation_errors": true
+            }
+        },
+        {
+            "name": "content_quality",
+            "type": "ContentQualityStage",
+            "config": {
+                "min_content_length": 100,
+                "check_completeness": true,
+                "detect_boilerplate": true,
+                "quality_threshold": 0.7
+            }
+        },
+        {
+            "name": "data_integrity",
+            "type": "DataIntegrityStage",
+            "config": {
+                "check_missing_values": true,
+                "check_data_types": true,
+                "check_value_ranges": true,
+                "validation_rules": [
+                    {"field": "price", "rule": "positive_number"},
+                    {"field": "date", "rule": "valid_date"},
+                    {"field": "email", "rule": "valid_email"}
+                ]
+            }
+        },
+        {
+            "name": "validation_report",
+            "type": "ValidationReportStage",
+            "config": {
+                "include_errors": true,
+                "include_warnings": true,
+                "include_statistics": true,
+                "report_format": "json"
+            }
+        }
+    ]
+}

@@ -1,0 +1,586 @@
+"""
+Rule-based extractor for search intent understanding.
+
+This module implements rule-based extraction of intent, entities, and preferences
+from search queries without requiring AI models.
+"""
+            Dictionary of extracted entities
+        """
+        self.logger.info(f"Extracting entities from query: {query}")
+        
+        # Handle dict input by extracting the query string
+        if isinstance(query, dict):
+            query_string = query.get('query', '')
+            if not query_string:
+                # Try other common keys
+                query_string = query.get('q', query.get('search', str(query)))
+        else:
+            query_string = str(query) if query else ''
+        
+        # Normalize the query
+        normalized_query = query_string.lower().strip()ues to parse
+search intents from user queries without requiring heavy NLP models.
+"""
+
+import re
+import logging
+from typing import Dict, List, Any, Optional, Tuple
+
+class RuleBasedExtractor:
+    """
+    Extracts structured information from search queries using rule-based approaches.
+    
+    This class provides lightweight alternatives to full NLP models by using
+    pattern matching, regular expressions, and heuristics to extract entities
+    and constraints from search queries.
+    """
+    
+    def __init__(self):
+        """Initialize the rule-based extractor."""
+        self.logger = logging.getLogger("RuleBasedExtractor")
+        
+        # Initialize pattern dictionaries
+        self._initialize_patterns()
+    
+    def _initialize_patterns(self):
+        """Initialize pattern dictionaries for various entity types."""
+        # Price patterns
+        self.price_patterns = [
+            r'(?:under|below|less than|up to|maximum|max)\s*\$?\s*(\d+(?:\.\d+)?)',
+            r'(?:over|above|more than|at least|minimum|min)\s*\$?\s*(\d+(?:\.\d+)?)',
+            r'\$\s*(\d+(?:\.\d+)?)\s*(?:to|-)\s*\$?\s*(\d+(?:\.\d+)?)',
+            r'(\d+(?:\.\d+)?)\s*(?:to|-)\s*(\d+(?:\.\d+)?)\s*(?:dollars|usd|\$)'
+        ]
+        
+        # Date patterns
+        self.date_patterns = [
+            r'(?:from|after|since)\s*((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*\d{1,2}(?:st|nd|rd|th)?,?\s*\d{4})',
+            r'(?:before|until|till)\s*((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*\d{1,2}(?:st|nd|rd|th)?,?\s*\d{4})',
+            r'((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*\d{1,2}(?:st|nd|rd|th)?,?\s*\d{4})\s*(?:to|-)\s*((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*\d{1,2}(?:st|nd|rd|th)?,?\s*\d{4})',
+            r'(?:in|during|from)\s*(\d{4})',
+            r'(?:last|past)\s*(\d+)\s*(day|days|week|weeks|month|months|year|years)'
+        ]
+        
+        # Location patterns
+        self.location_patterns = [
+            r'(?:in|near|around|within)\s+([A-Za-z\s\.]+?,\s*(?:[A-Za-z\s\.]+?))',
+            r'(?:within|in)\s+(\d+)\s*(?:miles|mi|km|kilometers)\s+(?:of|from)\s+([A-Za-z\s\.]+)',
+            r'([A-Za-z\s\.]+?),\s*([A-Z]{2})',  # City, State format
+            r'([A-Za-z\s\.]+?)\s+(\d{5}(?:-\d{4})?)'  # City + ZIP code format
+        ]
+        
+        # Brand/manufacturer patterns
+        self.brand_patterns = [
+            r'(?:from|by|made by|manufactured by)\s+([A-Za-z0-9\s&\'\-\.]+)',
+            r'brand:\s*([A-Za-z0-9\s&\'\-\.]+)',
+            r'([A-Za-z0-9\s&\'\-\.]+)\s+brand'
+        ]
+        
+        # Size/dimension patterns
+        self.size_patterns = [
+            r'(\d+(?:\.\d+)?)\s*(?:x|by)\s*(\d+(?:\.\d+)?)\s*(?:x|by)?\s*(\d+(?:\.\d+)?)?\s*(?:inch|in|cm|mm|feet|ft|meter|m)',
+            r'(\d+(?:\.\d+)?)\s*(?:inch|in|cm|mm|feet|ft|meter|m)',
+            r'(?:size):\s*([XSML]{1,4}|small|medium|large|extra\s*large|one\s*size)',
+            r'([XSML]{1,4}|small|medium|large|extra\s*large|one\s*size)\s*(?:size)'
+        ]
+        
+        # Color patterns
+        self.color_patterns = [
+            r'(?:in|color:)\s*([a-z]+(?:\s+[a-z]+)?)',
+            r'([a-z]+(?:\s+[a-z]+)?)\s+color',
+            r'(?:color):\s*([a-z]+(?:\s+[a-z]+)?)'
+        ]
+        
+        # Material patterns
+        self.material_patterns = [
+            r'(?:made of|made from|in)\s+([a-z]+(?:\s+[a-z]+)?)',
+            r'([a-z]+(?:\s+[a-z]+)?)\s+material',
+            r'(?:material):\s*([a-z]+(?:\s+[a-z]+)?)'
+        ]
+        
+        # Exclusion patterns
+        self.exclusion_patterns = [
+            r'(?:not|no|exclude|excluding|except)\s+([A-Za-z0-9\s\'\-\.]+)',
+            r'(?:without)\s+([A-Za-z0-9\s\'\-\.]+)'
+        ]
+        
+        # Sorting/ordering patterns
+        self.sort_patterns = [
+            r'(?:sort by|order by|sorted by)\s+([a-z]+(?:\s+[a-z]+)?)',
+            r'(?:in)\s+(ascending|descending)\s+order',
+            r'(?:from)\s+(highest|lowest|newest|oldest|most\s+recent|least\s+recent)\s+(?:to)\s+(highest|lowest|newest|oldest|most\s+recent|least\s+recent)',
+            r'(highest|lowest|newest|oldest|most\s+recent|least\s+recent)\s+first'
+        ]
+    
+    def extract_entities(self, query):
+        """
+        Extract entities from a search query
+        
+        Args:
+            query: The search query string or dict containing query
+            
+        Returns:
+            Dictionary of extracted entities
+        """
+        self.logger.info(f"Extracting entities from query: {query}")
+        
+        # Handle dict input by extracting the query string
+        if isinstance(query, dict):
+            query_string = query.get('query', '')
+            if not query_string:
+                # Try other common keys
+                query_string = query.get('q', query.get('search', str(query)))
+        else:
+            query_string = str(query) if query else ''
+        
+        # Normalize the query
+        normalized_query = query_string.lower().strip()
+        
+        # Initialize results dictionary
+        entities = {
+            "core_terms": self._extract_core_terms(normalized_query),
+            "constraints": {}
+        }
+        
+        # Extract price constraints
+        price_constraints = self._extract_price_constraints(normalized_query)
+        if price_constraints:
+            entities["constraints"]["price"] = price_constraints
+        
+        # Extract date constraints
+        date_constraints = self._extract_date_constraints(normalized_query)
+        if date_constraints:
+            entities["constraints"]["date"] = date_constraints
+        
+        # Extract location
+        location = self._extract_location(normalized_query)
+        if location:
+            entities["constraints"]["location"] = location
+        
+        # Extract brand/manufacturer
+        brand = self._extract_brand(normalized_query)
+        if brand:
+            entities["constraints"]["brand"] = brand
+        
+        # Extract size/dimensions
+        size = self._extract_size(normalized_query)
+        if size:
+            entities["constraints"]["size"] = size
+        
+        # Extract color
+        color = self._extract_color(normalized_query)
+        if color:
+            entities["constraints"]["color"] = color
+        
+        # Extract material
+        material = self._extract_material(normalized_query)
+        if material:
+            entities["constraints"]["material"] = material
+        
+        # Extract exclusions
+        exclusions = self._extract_exclusions(normalized_query)
+        if exclusions:
+            entities["constraints"]["exclusions"] = exclusions
+        
+        # Extract sorting preferences
+        sorting = self._extract_sorting(normalized_query)
+        if sorting:
+            entities["constraints"]["sort"] = sorting
+        
+        self.logger.info(f"Extracted entities: {entities}")
+        return entities
+    
+    def _extract_core_terms(self, query: str) -> List[str]:
+        """
+        Extract core search terms by removing constraints and common words.
+        
+        Args:
+            query: The normalized search query
+            
+        Returns:
+            List of core search terms
+        """
+        # Remove constraint patterns
+        constraint_indicators = [
+            r'(?:under|below|less than|up to|maximum|max|over|above|more than|at least|minimum|min)\s*\$?\s*\d+(?:\.\d+)?',
+            r'\$\s*\d+(?:\.\d+)?(?:\s*(?:to|-)\s*\$?\s*\d+(?:\.\d+)?)?',
+            r'(?:from|after|since|before|until|till|in|during|from|last|past)\s*(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*\d{1,2}(?:st|nd|rd|th)?,?\s*\d{4}',
+            r'(?:last|past)\s*\d+\s*(?:day|days|week|weeks|month|months|year|years)',
+            r'(?:in|near|around|within)\s+[A-Za-z\s\.]+?(?:,\s*[A-Za-z\s\.]+?)?',
+            r'(?:within|in)\s+\d+\s*(?:miles|mi|km|kilometers)\s+(?:of|from)\s+[A-Za-z\s\.]+',
+            r'(?:from|by|made by|manufactured by|brand:)\s+[A-Za-z0-9\s&\'\-\.]+',
+            r'(?:size|color|material):\s*[A-Za-z0-9\s&\'\-\.]+',
+            r'(?:sort by|order by|sorted by)\s+[a-z]+(?:\s+[a-z]+)?',
+            r'(?:in)\s+(?:ascending|descending)\s+order',
+            r'(?:from)\s+(?:highest|lowest|newest|oldest|most\s+recent|least\s+recent)\s+(?:to)\s+(?:highest|lowest|newest|oldest|most\s+recent|least\s+recent)',
+            r'(?:highest|lowest|newest|oldest|most\s+recent|least\s+recent)\s+first'
+        ]
+        
+        # Apply constraint removal
+        clean_query = query
+        for pattern in constraint_indicators:
+            clean_query = re.sub(pattern, ' ', clean_query)
+        
+        # Remove common stop words that don't affect search meaning
+        stop_words = ['the', 'a', 'an', 'and', 'or', 'but', 'is', 'are', 'that', 'this', 'these', 'those', 'for', 'with']
+        words = clean_query.split()
+        filtered_words = [word for word in words if word not in stop_words and len(word) > 1]
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        core_terms = [x for x in filtered_words if not (x in seen or seen.add(x))]
+        
+        return core_terms
+    
+    def _extract_price_constraints(self, query: str) -> Dict[str, Any]:
+        """
+        Extract price constraints from the query.
+        
+        Args:
+            query: The normalized search query
+            
+        Returns:
+            Dictionary with price constraints or None
+        """
+        price_info = {}
+        
+        # Check "under/below/less than" patterns
+        for pattern in self.price_patterns:
+            matches = re.search(pattern, query)
+            if matches:
+                if "under" in pattern or "below" in pattern or "less than" in pattern or "up to" in pattern or "maximum" in pattern or "max" in pattern:
+                    price_info["max"] = float(matches.group(1))
+                elif "over" in pattern or "above" in pattern or "more than" in pattern or "at least" in pattern or "minimum" in pattern or "min" in pattern:
+                    price_info["min"] = float(matches.group(1))
+                elif "to" in pattern or "-" in pattern:
+                    price_info["min"] = float(matches.group(1))
+                    price_info["max"] = float(matches.group(2))
+        
+        return price_info if price_info else None
+    
+    def _extract_date_constraints(self, query: str) -> Dict[str, Any]:
+        """
+        Extract date constraints from the query.
+        
+        Args:
+            query: The normalized search query
+            
+        Returns:
+            Dictionary with date constraints or None
+        """
+        date_info = {}
+        
+        for pattern in self.date_patterns:
+            matches = re.search(pattern, query)
+            if matches:
+                if "from" in pattern or "after" in pattern or "since" in pattern:
+                    date_info["start"] = matches.group(1)
+                elif "before" in pattern or "until" in pattern or "till" in pattern:
+                    date_info["end"] = matches.group(1)
+                elif "to" in pattern or "-" in pattern:
+                    date_info["start"] = matches.group(1)
+                    date_info["end"] = matches.group(2)
+                elif "in" in pattern or "during" in pattern or "from" in pattern:
+                    # Year only
+                    date_info["year"] = matches.group(1)
+                elif "last" in pattern or "past" in pattern:
+                    # Relative time period
+                    date_info["period"] = {
+                        "value": int(matches.group(1)),
+                        "unit": matches.group(2)
+                    }
+        
+        return date_info if date_info else None
+    
+    def _extract_location(self, query: str) -> Dict[str, Any]:
+        """
+        Extract location information from the query.
+        
+        Args:
+            query: The normalized search query
+            
+        Returns:
+            Dictionary with location information or None
+        """
+        location_info = {}
+        
+        for pattern in self.location_patterns:
+            matches = re.search(pattern, query)
+            if matches:
+                if "within" in pattern or "miles" in pattern or "km" in pattern:
+                    location_info["distance"] = {
+                        "value": int(matches.group(1)),
+                        "unit": "miles" if "miles" in pattern or "mi" in pattern else "km",
+                        "location": matches.group(2)
+                    }
+                elif "," in pattern and len(matches.groups()) == 1:
+                    # Full address with comma
+                    location_info["address"] = matches.group(1)
+                elif "," in pattern and len(matches.groups()) == 2:
+                    # City, State format
+                    location_info["city"] = matches.group(1)
+                    location_info["state"] = matches.group(2)
+                elif "zip" in pattern or "postal" in pattern or re.search(r'\d{5}', matches.group(0)):
+                    # Format with ZIP code
+                    location_info["city"] = matches.group(1)
+                    location_info["postal_code"] = matches.group(2)
+                else:
+                    # Generic location
+                    location_info["location"] = matches.group(1)
+                break  # Take the first matching location pattern
+        
+        return location_info if location_info else None
+    
+    def _extract_brand(self, query: str) -> str:
+        """
+        Extract brand/manufacturer information from the query.
+        
+        Args:
+            query: The normalized search query
+            
+        Returns:
+            Brand name or None
+        """
+        for pattern in self.brand_patterns:
+            matches = re.search(pattern, query)
+            if matches:
+                return matches.group(1).strip()
+        
+        return None
+    
+    def _extract_size(self, query: str) -> Dict[str, Any]:
+        """
+        Extract size/dimension information from the query.
+        
+        Args:
+            query: The normalized search query
+            
+        Returns:
+            Dictionary with size information or None
+        """
+        size_info = {}
+        
+        for pattern in self.size_patterns:
+            matches = re.search(pattern, query)
+            if matches:
+                if "x" in pattern or "by" in pattern:
+                    dimensions = []
+                    for i in range(1, min(4, len(matches.groups()) + 1)):
+                        if matches.group(i):
+                            dimensions.append(float(matches.group(i)))
+                    
+                    size_info["dimensions"] = dimensions
+                    
+                    # Try to determine the unit
+                    unit_match = re.search(r'(inch|in|cm|mm|feet|ft|meter|m)', matches.group(0))
+                    if unit_match:
+                        size_info["unit"] = unit_match.group(1)
+                
+                elif "inch" in pattern or "in" in pattern or "cm" in pattern or "mm" in pattern or "feet" in pattern or "ft" in pattern:
+                    size_info["value"] = float(matches.group(1))
+                    
+                    # Determine the unit
+                    unit_match = re.search(r'(inch|in|cm|mm|feet|ft|meter|m)', matches.group(0))
+                    if unit_match:
+                        size_info["unit"] = unit_match.group(1)
+                
+                else:  # Clothing size or similar
+                    size_info["size"] = matches.group(1).strip()
+                
+                break  # Take the first matching size pattern
+        
+        return size_info if size_info else None
+    
+    def _extract_color(self, query: str) -> str:
+        """
+        Extract color information from the query.
+        
+        Args:
+            query: The normalized search query
+            
+        Returns:
+            Color name or None
+        """
+        for pattern in self.color_patterns:
+            matches = re.search(pattern, query)
+            if matches:
+                return matches.group(1).strip()
+        
+        return None
+    
+    def _extract_material(self, query: str) -> str:
+        """
+        Extract material information from the query.
+        
+        Args:
+            query: The normalized search query
+            
+        Returns:
+            Material name or None
+        """
+        for pattern in self.material_patterns:
+            matches = re.search(pattern, query)
+            if matches:
+                return matches.group(1).strip()
+        
+        return None
+    
+    def _extract_exclusions(self, query: str) -> List[str]:
+        """
+        Extract exclusion terms from the query.
+        
+        Args:
+            query: The normalized search query
+            
+        Returns:
+            List of terms to exclude or None
+        """
+        exclusions = []
+        
+        for pattern in self.exclusion_patterns:
+            matches = re.search(pattern, query)
+            if matches:
+                exclusions.append(matches.group(1).strip())
+        
+        return exclusions if exclusions else None
+    
+    def _extract_sorting(self, query: str) -> Dict[str, str]:
+        """
+        Extract sorting/ordering preferences from the query.
+        
+        Args:
+            query: The normalized search query
+            
+        Returns:
+            Dictionary with sorting information or None
+        """
+        sorting_info = {}
+        
+        for pattern in self.sort_patterns:
+            matches = re.search(pattern, query)
+            if matches:
+                if "sort by" in pattern or "order by" in pattern or "sorted by" in pattern:
+                    sorting_info["field"] = matches.group(1).strip()
+                elif "ascending" in pattern or "descending" in pattern:
+                    sorting_info["direction"] = matches.group(1).strip()
+                elif "from" in pattern and "to" in pattern:
+                    from_value = matches.group(1).strip()
+                    to_value = matches.group(2).strip()
+                    
+                    # Determine field and direction
+                    if "high" in from_value or "low" in to_value:
+                        sorting_info["field"] = "price"
+                        sorting_info["direction"] = "descending"
+                    elif "low" in from_value or "high" in to_value:
+                        sorting_info["field"] = "price"
+                        sorting_info["direction"] = "ascending"
+                    elif "new" in from_value or "old" in to_value:
+                        sorting_info["field"] = "date"
+                        sorting_info["direction"] = "descending"
+                    elif "old" in from_value or "new" in to_value:
+                        sorting_info["field"] = "date"
+                        sorting_info["direction"] = "ascending"
+                elif "first" in pattern:
+                    value = matches.group(1).strip()
+                    
+                    # Determine field and direction
+                    if "high" in value:
+                        sorting_info["field"] = "price"
+                        sorting_info["direction"] = "descending"
+                    elif "low" in value:
+                        sorting_info["field"] = "price"
+                        sorting_info["direction"] = "ascending"
+                    elif "new" in value:
+                        sorting_info["field"] = "date"
+                        sorting_info["direction"] = "descending"
+                    elif "old" in value:
+                        sorting_info["field"] = "date"
+                        sorting_info["direction"] = "ascending"
+                
+                break  # Take the first matching sorting pattern
+        
+        return sorting_info if sorting_info else None
+    
+    def extract_search_constraints(self, query: str) -> Dict[str, Any]:
+        """
+        Extract search constraints and limitations from a query.
+        
+        Args:
+            query: The search query
+            
+        Returns:
+            Dictionary of constraints
+        """
+        entities = self.extract_entities(query)
+        return entities.get("constraints", {})
+    
+    def identify_domain_preferences(self, query: str) -> Dict[str, float]:
+        """
+        Identify domain preferences based on the query terms.
+        
+        Args:
+            query: The search query
+            
+        Returns:
+            Dictionary mapping domain types to confidence scores
+        """
+        domain_indicators = {
+            "e-commerce": ["buy", "purchase", "shop", "price", "cheap", "discount", "product", "brand", "sale"],
+            "travel": ["hotel", "flight", "booking", "reservation", "travel", "vacation", "destination", "trip"],
+            "real-estate": ["house", "apartment", "rent", "property", "real estate", "home", "condo", "listing"],
+            "jobs": ["job", "career", "position", "salary", "employment", "hiring", "resume", "apply"],
+            "news": ["news", "article", "recent", "latest", "update", "story", "report", "coverage"],
+            "recipes": ["recipe", "cook", "food", "ingredient", "meal", "dish", "cooking", "bake"],
+            "reviews": ["review", "rating", "best", "top", "recommended", "comparison", "versus", "vs"]
+        }
+        
+        normalized_query = query.lower()
+        scores = {}
+        
+        for domain, indicators in domain_indicators.items():
+            domain_score = 0
+            for indicator in indicators:
+                if indicator in normalized_query:
+                    domain_score += 1
+            
+            if domain_score > 0:
+                scores[domain] = domain_score / len(indicators)
+        
+        return scores
+
+def extract_intent(query: str) -> dict:
+    """
+    Extract search intent from a user query.
+    
+    This is a simplified wrapper around RuleBasedExtractor for easier access.
+    
+    Args:
+        query: The search query string
+        
+    Returns:
+        Dictionary containing extracted intent information
+    """
+    extractor = RuleBasedExtractor()
+    entities = extractor.extract_entities(query)
+    domain_prefs = extractor.identify_domain_preferences(query)
+    
+    return {
+        "query": query,
+        "entities": entities,
+        "domain_preferences": domain_prefs,
+        "core_terms": entities.get("core_terms", []),
+        "constraints": entities.get("constraints", {})
+    }
+
+def extract_intent_with_rules(query: str) -> dict:
+    """
+    Extract search intent using rule-based methods.
+    This is an alias function for extract_intent to maintain backward compatibility.
+    
+    Args:
+        query: The search query string
+        
+    Returns:
+        Dictionary containing extracted intent information
+    """
+    return extract_intent(query)

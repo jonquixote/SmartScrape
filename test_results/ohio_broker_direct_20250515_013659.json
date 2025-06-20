@@ -1,0 +1,11 @@
+{
+  "site": "Ohio Broker Direct",
+  "url": "https://www.ohiobrokerdirect.com/",
+  "query": "homes in Cleveland, OH",
+  "timestamp": "2025-05-15T01:36:59.864411",
+  "success": false,
+  "results_count": 0,
+  "execution_time": 0,
+  "field_coverage": {},
+  "error": "Browser search error: Page.evaluate: SyntaxError: Illegal return statement\n    at eval (<anonymous>)\n    at UtilityScript.evaluate (<anonymous>:313:29)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+}

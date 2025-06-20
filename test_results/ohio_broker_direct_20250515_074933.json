@@ -1,0 +1,51 @@
+{
+  "site": "Ohio Broker Direct",
+  "url": "https://www.ohiobrokerdirect.com/",
+  "query": "homes in Cleveland, OH",
+  "timestamp": "2025-05-15T07:49:33.380639",
+  "success": true,
+  "results_count": 1,
+  "execution_time": 62.56324815750122,
+  "field_coverage": {
+    "price": false,
+    "bedrooms": false,
+    "bathrooms": false,
+    "address": false,
+    "sqft": false,
+    "description": true
+  },
+  "error": null,
+  "raw_results": [
+    {
+      "title": "DELUXE",
+      "url": "https://ohiobrokerdirect.com/product/deluxe-listing-plan/",
+      "description": "DELUXEIntermediate Services299SALELocal MLS Listing (Residential, Multi-Family, Commercial Farm & Land)Commercial is an option in all MLS's excluding DaytonREALTOR MLSSeller\u2019s name, phone number & email is uploaded into MLS(All leads directed to Seller)OBD HAS NO HIDDEN BACK END FEES AT CLOSING!99 p",
+      "source_url": "https://ohiobrokerdirect.com/listing-packages/"
+    }
+  ],
+  "field_occurrences": {
+    "price": 0,
+    "bedrooms": 0,
+    "bathrooms": 0,
+    "address": 0,
+    "sqft": 0,
+    "description": 1
+  },
+  "field_occurrence_pct": {
+    "price": 0.0,
+    "bedrooms": 0.0,
+    "bathrooms": 0.0,
+    "address": 0.0,
+    "sqft": 0.0,
+    "description": 100.0
+  },
+  "field_coverage_pct": 16.67,
+  "sample_result": {
+    "title": "DELUXE",
+    "url": "https://ohiobrokerdirect.com/product/deluxe-listing-plan/",
+    "description": "DELUXEIntermediate Services299SALELocal MLS Listing (Residential, Multi-Family, Commercial Farm & Land)Commercial is an option in all MLS's excluding DaytonREALTOR MLSSeller\u2019s name, phone number & email is uploaded into MLS(All leads directed to Seller)OBD HAS NO HIDDEN BACK END FEES AT CLOSING!99 p",
+    "source_url": "https://ohiobrokerdirect.com/listing-packages/"
+  },
+  "results_file": "ohio_broker_direct_direct_test_results.json",
+  "strategy": "form_search_engine"
+}

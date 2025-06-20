@@ -1,0 +1,63 @@
+{
+  "title": "Premium Wireless Headphones",
+  "brand": "TechGadgets",
+  "price": {
+    "amount": 199.99,
+    "currency": "USD",
+    "original_amount": 249.99
+  },
+  "description": "Premium wireless headphones with active noise cancellation, 30-hour battery life, and comfortable over-ear design.",
+  "features": [
+    "Active Noise Cancellation technology",
+    "30-hour battery life",
+    "Premium sound quality with deep bass",
+    "Memory foam ear cushions for comfort",
+    "Bluetooth 5.0 with multi-device connection",
+    "Built-in microphone for calls",
+    "Foldable design with carrying case",
+    "Touch controls for music and calls"
+  ],
+  "specifications": {
+    "Driver Size": "40mm",
+    "Frequency Response": "20Hz - 20kHz",
+    "Bluetooth Version": "5.0",
+    "Battery Life": "30 hours (ANC on), 40 hours (ANC off)",
+    "Charging Time": "2 hours",
+    "Weight": "250g",
+    "Connectivity": "Bluetooth, 3.5mm audio jack",
+    "Water Resistance": "IPX4 (sweat resistant)"
+  },
+  "images": [
+    {
+      "url": "/images/headphones-main.jpg",
+      "alt": "Premium Wireless Headphones",
+      "is_main": true
+    },
+    {
+      "url": "/images/headphones-angle1.jpg",
+      "alt": "Side view",
+      "is_main": false
+    },
+    {
+      "url": "/images/headphones-angle2.jpg",
+      "alt": "Top view",
+      "is_main": false
+    },
+    {
+      "url": "/images/headphones-case.jpg",
+      "alt": "With case",
+      "is_main": false
+    }
+  ],
+  "availability": "in_stock",
+  "rating": {
+    "value": 4.2,
+    "count": 423
+  },
+  "sku": "TG-WH-2023-BLK",
+  "category": [
+    "Audio",
+    "Headphones"
+  ],
+  "url": "https://example.com/products/premium-wireless-headphones"
+}

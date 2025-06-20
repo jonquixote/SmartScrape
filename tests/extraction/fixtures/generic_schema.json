@@ -1,0 +1,160 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Generic Schema",
+  "description": "Generic schema for general-purpose content extraction",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "The main title of the page"
+    },
+    "headings": {
+      "type": "array",
+      "description": "All headings on the page",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "level": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 6
+          }
+        }
+      }
+    },
+    "paragraphs": {
+      "type": "array",
+      "description": "Main text paragraphs",
+      "items": {
+        "type": "string"
+      }
+    },
+    "images": {
+      "type": "array",
+      "description": "Images on the page",
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "alt": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "links": {
+      "type": "array",
+      "description": "Links on the page",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      }
+    },
+    "lists": {
+      "type": "array",
+      "description": "Lists on the page",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["ordered", "unordered", "definition"]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "tables": {
+      "type": "array",
+      "description": "Tables on the page",
+      "items": {
+        "type": "object",
+        "properties": {
+          "headers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Page metadata",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "keywords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "author": {
+          "type": "string"
+        },
+        "canonical_url": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "content_type": {
+      "type": "string",
+      "description": "Detected type of content",
+      "enum": ["article", "product", "listing", "form", "profile", "other"]
+    },
+    "main_content": {
+      "type": "string",
+      "description": "Main content area text"
+    },
+    "_metadata": {
+      "type": "object",
+      "description": "Metadata about the extraction",
+      "properties": {
+        "extractor": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "extraction_time": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

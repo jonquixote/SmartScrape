@@ -1,0 +1,174 @@
+{
+  "timestamp": "2025-05-02T20:59:40.815437",
+  "categories_tested": [
+    "all"
+  ],
+  "test_count": 12,
+  "success_count": 0,
+  "failure_count": 12,
+  "category_results": {
+    "real_estate": {
+      "total_tests": 3,
+      "success_count": 0,
+      "failure_count": 3,
+      "success_rate": "0.0%",
+      "avg_processing_time": 0.0
+    },
+    "ecommerce": {
+      "total_tests": 3,
+      "success_count": 0,
+      "failure_count": 3,
+      "success_rate": "0.0%",
+      "avg_processing_time": 0.0
+    },
+    "content": {
+      "total_tests": 3,
+      "success_count": 0,
+      "failure_count": 3,
+      "success_rate": "0.0%",
+      "avg_processing_time": 0.0
+    },
+    "directory": {
+      "total_tests": 3,
+      "success_count": 0,
+      "failure_count": 3,
+      "success_rate": "0.0%",
+      "avg_processing_time": 0.0
+    }
+  },
+  "detailed_results": [
+    {
+      "site": "Zillow",
+      "url": "https://www.zillow.com/homes/for_sale/",
+      "prompt": "Find homes for sale with 3 bedrooms in Seattle, WA",
+      "timestamp": "2025-05-02T20:59:40.818797",
+      "success": false,
+      "results_count": 1,
+      "execution_time": 16.895618,
+      "field_coverage": {},
+      "error": null
+    },
+    {
+      "site": "Realtor",
+      "url": "https://www.realtor.com/realestateandhomes-search/",
+      "prompt": "Find homes for sale with 3 bedrooms in Seattle, WA",
+      "timestamp": "2025-05-02T20:59:57.714551",
+      "success": false,
+      "results_count": 1,
+      "execution_time": 14.608706,
+      "field_coverage": {},
+      "error": null
+    },
+    {
+      "site": "Redfin",
+      "url": "https://www.redfin.com/city/",
+      "prompt": "Find homes for sale with 3 bedrooms in Seattle, WA",
+      "timestamp": "2025-05-02T21:00:12.323431",
+      "success": false,
+      "results_count": 1,
+      "execution_time": 15.351222,
+      "field_coverage": {},
+      "error": null
+    },
+    {
+      "site": "Books To Scrape",
+      "url": "https://books.toscrape.com/",
+      "prompt": "Find bestselling fiction books under $20",
+      "timestamp": "2025-05-02T21:00:27.675154",
+      "success": false,
+      "results_count": 1,
+      "execution_time": 10.067184,
+      "field_coverage": {},
+      "error": null
+    },
+    {
+      "site": "Amazon Books",
+      "url": "https://www.amazon.com/s?k=books",
+      "prompt": "Find bestselling fiction books under $20",
+      "timestamp": "2025-05-02T21:00:37.742570",
+      "success": false,
+      "results_count": 1,
+      "execution_time": 13.750008,
+      "field_coverage": {},
+      "error": null
+    },
+    {
+      "site": "Adidas Shop",
+      "url": "https://shop.adidas.com/us/men-shoes/",
+      "prompt": "Find bestselling fiction books under $20",
+      "timestamp": "2025-05-02T21:00:51.492879",
+      "success": false,
+      "results_count": 1,
+      "execution_time": 17.081797,
+      "field_coverage": {},
+      "error": null
+    },
+    {
+      "site": "Hacker News",
+      "url": "https://news.ycombinator.com/",
+      "prompt": "Find the latest technology news articles",
+      "timestamp": "2025-05-02T21:01:08.575086",
+      "success": false,
+      "results_count": 1,
+      "execution_time": 8.557944,
+      "field_coverage": {},
+      "error": null
+    },
+    {
+      "site": "BBC News",
+      "url": "https://www.bbc.com/news",
+      "prompt": "Find the latest technology news articles",
+      "timestamp": "2025-05-02T21:01:17.133205",
+      "success": false,
+      "results_count": 1,
+      "execution_time": 41.27697,
+      "field_coverage": {},
+      "error": null
+    },
+    {
+      "site": "TechCrunch",
+      "url": "https://techcrunch.com/",
+      "prompt": "Find the latest technology news articles",
+      "timestamp": "2025-05-02T21:01:58.410569",
+      "success": false,
+      "results_count": 1,
+      "execution_time": 42.345659,
+      "field_coverage": {},
+      "error": null
+    },
+    {
+      "site": "Yelp",
+      "url": "https://www.yelp.com/search?find_desc=Restaurants",
+      "prompt": "Find top-rated restaurants in San Francisco",
+      "timestamp": "2025-05-02T21:02:40.756508",
+      "success": false,
+      "results_count": 1,
+      "execution_time": 15.212816,
+      "field_coverage": {},
+      "error": null
+    },
+    {
+      "site": "TripAdvisor",
+      "url": "https://www.tripadvisor.com/Restaurants",
+      "prompt": "Find top-rated restaurants in San Francisco",
+      "timestamp": "2025-05-02T21:02:55.969738",
+      "success": false,
+      "results_count": 1,
+      "execution_time": 12.905437,
+      "field_coverage": {},
+      "error": null
+    },
+    {
+      "site": "Indeed",
+      "url": "https://www.indeed.com/jobs?q=software+engineer",
+      "prompt": "Find top-rated restaurants in San Francisco",
+      "timestamp": "2025-05-02T21:03:08.877379",
+      "success": false,
+      "results_count": 1,
+      "execution_time": 36.962897,
+      "field_coverage": {},
+      "error": null
+    }
+  ],
+  "success_rate": 0.0
+}

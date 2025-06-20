@@ -1,0 +1,101 @@
+# SmartScrape .gitignore
+# Comprehensive .gitignore for production environments
+
+# Environment variables and secrets
+.env
+.env.*
+*.pem
+*.key
+*.cert
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.vscode/
+*.sublime*
+.idea/
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.virtualenv/
+
+# Application specific
+logs/
+*.log
+cache/
+data/
+temp/
+node_modules/
+.npm
+.yarn
+*.sqlite
+*.sqlite3
+*.db
+
+# Generated files
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+*~
+._*
+*.bak
+*.tmp
+*.old
+*.pid
+
+# Exported data files
+*_scrape_results.json
+*.xlsx
+*.csv
+*.parquet
+*.xls
+*.pdf
+*.html
+!templates/*.html
+
+# Playwright
+.playwright-browsers/
+
+# Production specific
+nginx/ssl/
+supervisord.pid
+*.sock
+production.json
+secrets.json
+protected/
+
+# Monitoring
+prometheus_data/
+grafana_data/
+
+# Docker
+*.dockerignore
+docker-compose.override.yml
+.git/

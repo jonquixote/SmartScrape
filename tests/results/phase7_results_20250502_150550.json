@@ -1,0 +1,174 @@
+{
+  "timestamp": "2025-05-02T15:05:50.939055",
+  "categories_tested": [
+    "all"
+  ],
+  "test_count": 12,
+  "success_count": 0,
+  "failure_count": 12,
+  "category_results": {
+    "real_estate": {
+      "total_tests": 3,
+      "success_count": 0,
+      "failure_count": 3,
+      "success_rate": "0.0%",
+      "avg_processing_time": 0.0
+    },
+    "ecommerce": {
+      "total_tests": 3,
+      "success_count": 0,
+      "failure_count": 3,
+      "success_rate": "0.0%",
+      "avg_processing_time": 0.0
+    },
+    "content": {
+      "total_tests": 3,
+      "success_count": 0,
+      "failure_count": 3,
+      "success_rate": "0.0%",
+      "avg_processing_time": 0.0
+    },
+    "directory": {
+      "total_tests": 3,
+      "success_count": 0,
+      "failure_count": 3,
+      "success_rate": "0.0%",
+      "avg_processing_time": 0.0
+    }
+  },
+  "detailed_results": [
+    {
+      "site": "Zillow",
+      "url": "https://www.zillow.com/homes/for_sale/",
+      "prompt": "Find homes for sale with 3 bedrooms in Seattle, WA",
+      "timestamp": "2025-05-02T15:05:50.942624",
+      "success": false,
+      "results_count": 0,
+      "execution_time": 9.3e-05,
+      "field_coverage": {},
+      "error": "'AdaptiveScraper' object has no attribute 'scrape'"
+    },
+    {
+      "site": "Realtor",
+      "url": "https://www.realtor.com/realestateandhomes-search/",
+      "prompt": "Find homes for sale with 3 bedrooms in Seattle, WA",
+      "timestamp": "2025-05-02T15:05:50.942918",
+      "success": false,
+      "results_count": 0,
+      "execution_time": 0.000228,
+      "field_coverage": {},
+      "error": "'AdaptiveScraper' object has no attribute 'scrape'"
+    },
+    {
+      "site": "Redfin",
+      "url": "https://www.redfin.com/city/",
+      "prompt": "Find homes for sale with 3 bedrooms in Seattle, WA",
+      "timestamp": "2025-05-02T15:05:50.944591",
+      "success": false,
+      "results_count": 0,
+      "execution_time": 0.000105,
+      "field_coverage": {},
+      "error": "'AdaptiveScraper' object has no attribute 'scrape'"
+    },
+    {
+      "site": "Books To Scrape",
+      "url": "https://books.toscrape.com/",
+      "prompt": "Find bestselling fiction books under $20",
+      "timestamp": "2025-05-02T15:05:50.944962",
+      "success": false,
+      "results_count": 0,
+      "execution_time": 0.000144,
+      "field_coverage": {},
+      "error": "'AdaptiveScraper' object has no attribute 'scrape'"
+    },
+    {
+      "site": "Amazon Books",
+      "url": "https://www.amazon.com/s?k=books",
+      "prompt": "Find bestselling fiction books under $20",
+      "timestamp": "2025-05-02T15:05:50.945213",
+      "success": false,
+      "results_count": 0,
+      "execution_time": 0.000133,
+      "field_coverage": {},
+      "error": "'AdaptiveScraper' object has no attribute 'scrape'"
+    },
+    {
+      "site": "Adidas Shop",
+      "url": "https://shop.adidas.com/us/men-shoes/",
+      "prompt": "Find bestselling fiction books under $20",
+      "timestamp": "2025-05-02T15:05:50.947933",
+      "success": false,
+      "results_count": 0,
+      "execution_time": 0.000933,
+      "field_coverage": {},
+      "error": "'AdaptiveScraper' object has no attribute 'scrape'"
+    },
+    {
+      "site": "Hacker News",
+      "url": "https://news.ycombinator.com/",
+      "prompt": "Find the latest technology news articles",
+      "timestamp": "2025-05-02T15:05:50.950339",
+      "success": false,
+      "results_count": 0,
+      "execution_time": 0.000925,
+      "field_coverage": {},
+      "error": "'AdaptiveScraper' object has no attribute 'scrape'"
+    },
+    {
+      "site": "BBC News",
+      "url": "https://www.bbc.com/news",
+      "prompt": "Find the latest technology news articles",
+      "timestamp": "2025-05-02T15:05:50.951376",
+      "success": false,
+      "results_count": 0,
+      "execution_time": 8.5e-05,
+      "field_coverage": {},
+      "error": "'AdaptiveScraper' object has no attribute 'scrape'"
+    },
+    {
+      "site": "TechCrunch",
+      "url": "https://techcrunch.com/",
+      "prompt": "Find the latest technology news articles",
+      "timestamp": "2025-05-02T15:05:50.951538",
+      "success": false,
+      "results_count": 0,
+      "execution_time": 7.3e-05,
+      "field_coverage": {},
+      "error": "'AdaptiveScraper' object has no attribute 'scrape'"
+    },
+    {
+      "site": "Yelp",
+      "url": "https://www.yelp.com/search?find_desc=Restaurants",
+      "prompt": "Find top-rated restaurants in San Francisco",
+      "timestamp": "2025-05-02T15:05:50.952086",
+      "success": false,
+      "results_count": 0,
+      "execution_time": 8.1e-05,
+      "field_coverage": {},
+      "error": "'AdaptiveScraper' object has no attribute 'scrape'"
+    },
+    {
+      "site": "TripAdvisor",
+      "url": "https://www.tripadvisor.com/Restaurants",
+      "prompt": "Find top-rated restaurants in San Francisco",
+      "timestamp": "2025-05-02T15:05:50.952248",
+      "success": false,
+      "results_count": 0,
+      "execution_time": 7.6e-05,
+      "field_coverage": {},
+      "error": "'AdaptiveScraper' object has no attribute 'scrape'"
+    },
+    {
+      "site": "Indeed",
+      "url": "https://www.indeed.com/jobs?q=software+engineer",
+      "prompt": "Find top-rated restaurants in San Francisco",
+      "timestamp": "2025-05-02T15:05:50.952400",
+      "success": false,
+      "results_count": 0,
+      "execution_time": 6.9e-05,
+      "field_coverage": {},
+      "error": "'AdaptiveScraper' object has no attribute 'scrape'"
+    }
+  ],
+  "success_rate": 0.0
+}

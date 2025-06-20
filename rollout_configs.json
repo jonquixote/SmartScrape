@@ -1,0 +1,716 @@
+{
+  "rollouts": {
+    "092bcacd-b822-4779-9126-8a1d777ce8ce": {
+      "feature_name": "semantic_intent_analysis",
+      "config": {
+        "feature_name": "semantic_intent_analysis",
+        "phases": {
+          "canary": {
+            "percentage": 5,
+            "max_requests": 100
+          },
+          "staged_rollout": {
+            "percentage": 25,
+            "max_requests": 1000
+          },
+          "full_rollout": {
+            "percentage": 100
+          }
+        },
+        "success_criteria": {
+          "min_requests": 50,
+          "max_error_rate": 0.02,
+          "max_response_time": 3.0,
+          "min_phase_duration": 1800
+        },
+        "rollback_criteria": {
+          "max_error_rate": 0.05,
+          "max_response_time": 10.0,
+          "min_success_rate": 0.9
+        },
+        "monitoring_interval": 300,
+        "auto_progress": true,
+        "max_duration": 86400
+      },
+      "status": "completed",
+      "current_phase": "full_rollout",
+      "created_at": "2025-05-31T00:31:21.908954",
+      "updated_at": "2025-05-31T00:37:23.348574"
+    },
+    "1f9b3d6f-62c5-4df6-b192-c733068da957": {
+      "feature_name": "ai_schema_generation",
+      "config": {
+        "feature_name": "ai_schema_generation",
+        "phases": {
+          "canary": {
+            "percentage": 10,
+            "cache_enabled": true
+          },
+          "staged_rollout": {
+            "percentage": 50,
+            "cache_enabled": true
+          },
+          "full_rollout": {
+            "percentage": 100,
+            "cache_enabled": true
+          }
+        },
+        "success_criteria": {
+          "min_requests": 25,
+          "max_error_rate": 0.03,
+          "max_response_time": 5.0,
+          "min_phase_duration": 3600
+        },
+        "rollback_criteria": {
+          "max_error_rate": 0.08,
+          "max_response_time": 15.0
+        },
+        "monitoring_interval": 300,
+        "auto_progress": true,
+        "max_duration": 86400
+      },
+      "status": "active",
+      "current_phase": "full_rollout",
+      "created_at": "2025-05-31T00:31:21.915052",
+      "updated_at": "2025-05-31T00:47:03.328806"
+    },
+    "da858b9e-a498-4d3b-bef6-7df2c9abdc90": {
+      "feature_name": "intelligent_caching",
+      "config": {
+        "feature_name": "intelligent_caching",
+        "phases": {
+          "canary": {
+            "percentage": 15,
+            "cache_ttl": 300
+          },
+          "staged_rollout": {
+            "percentage": 60,
+            "cache_ttl": 600
+          },
+          "full_rollout": {
+            "percentage": 100,
+            "cache_ttl": 3600
+          }
+        },
+        "success_criteria": {
+          "min_requests": 100,
+          "max_error_rate": 0.01,
+          "min_cache_hit_rate": 0.3,
+          "min_phase_duration": 1800
+        },
+        "rollback_criteria": {
+          "max_error_rate": 0.03,
+          "cache_hit_rate": 0.1
+        },
+        "monitoring_interval": 300,
+        "auto_progress": true,
+        "max_duration": 86400
+      },
+      "status": "active",
+      "current_phase": "full_rollout",
+      "created_at": "2025-05-31T00:31:21.928140",
+      "updated_at": "2025-05-31T00:47:03.341113"
+    },
+    "55903992-7102-4a28-a3c8-0aeee16abb46": {
+      "feature_name": "resilience_enhancements",
+      "config": {
+        "feature_name": "resilience_enhancements",
+        "phases": {
+          "canary": {
+            "percentage": 5,
+            "retry_attempts": 2
+          },
+          "staged_rollout": {
+            "percentage": 30,
+            "retry_attempts": 3
+          },
+          "full_rollout": {
+            "percentage": 100,
+            "retry_attempts": 3
+          }
+        },
+        "success_criteria": {
+          "min_requests": 75,
+          "max_error_rate": 0.02,
+          "min_success_rate": 0.95,
+          "min_phase_duration": 2700
+        },
+        "rollback_criteria": {
+          "max_error_rate": 0.06,
+          "min_success_rate": 0.85
+        },
+        "monitoring_interval": 300,
+        "auto_progress": true,
+        "max_duration": 86400
+      },
+      "status": "active",
+      "current_phase": "full_rollout",
+      "created_at": "2025-05-31T00:31:21.934185",
+      "updated_at": "2025-05-31T00:47:03.344711"
+    },
+    "da20bdc8-c9c3-4c87-956c-8a41a98692e0": {
+      "feature_name": "semantic_intent_analysis",
+      "config": {
+        "feature_name": "semantic_intent_analysis",
+        "phases": {
+          "canary": {
+            "percentage": 5,
+            "max_requests": 100
+          },
+          "staged_rollout": {
+            "percentage": 25,
+            "max_requests": 1000
+          },
+          "full_rollout": {
+            "percentage": 100
+          }
+        },
+        "success_criteria": {
+          "min_requests": 50,
+          "max_error_rate": 0.02,
+          "max_response_time": 3.0,
+          "min_phase_duration": 1800
+        },
+        "rollback_criteria": {
+          "max_error_rate": 0.05,
+          "max_response_time": 10.0,
+          "min_success_rate": 0.9
+        },
+        "monitoring_interval": 300,
+        "auto_progress": true,
+        "max_duration": 86400
+      },
+      "status": "active",
+      "current_phase": "staged_rollout",
+      "created_at": "2025-05-31T00:43:28.588274",
+      "updated_at": "2025-05-31T00:43:28.655078"
+    },
+    "2bf60fff-5178-47b0-9476-ed7dfd63e608": {
+      "feature_name": "ai_schema_generation",
+      "config": {
+        "feature_name": "ai_schema_generation",
+        "phases": {
+          "canary": {
+            "percentage": 10,
+            "cache_enabled": true
+          },
+          "staged_rollout": {
+            "percentage": 50,
+            "cache_enabled": true
+          },
+          "full_rollout": {
+            "percentage": 100,
+            "cache_enabled": true
+          }
+        },
+        "success_criteria": {
+          "min_requests": 25,
+          "max_error_rate": 0.03,
+          "max_response_time": 5.0,
+          "min_phase_duration": 3600
+        },
+        "rollback_criteria": {
+          "max_error_rate": 0.08,
+          "max_response_time": 15.0
+        },
+        "monitoring_interval": 300,
+        "auto_progress": true,
+        "max_duration": 86400
+      },
+      "status": "active",
+      "current_phase": "canary",
+      "created_at": "2025-05-31T00:43:28.623026",
+      "updated_at": "2025-05-31T00:43:28.625211"
+    },
+    "9930aaa1-3015-4ba8-9e9b-28cfffc97187": {
+      "feature_name": "intelligent_caching",
+      "config": {
+        "feature_name": "intelligent_caching",
+        "phases": {
+          "canary": {
+            "percentage": 15,
+            "cache_ttl": 300
+          },
+          "staged_rollout": {
+            "percentage": 60,
+            "cache_ttl": 600
+          },
+          "full_rollout": {
+            "percentage": 100,
+            "cache_ttl": 3600
+          }
+        },
+        "success_criteria": {
+          "min_requests": 100,
+          "max_error_rate": 0.01,
+          "min_cache_hit_rate": 0.3,
+          "min_phase_duration": 1800
+        },
+        "rollback_criteria": {
+          "max_error_rate": 0.03,
+          "cache_hit_rate": 0.1
+        },
+        "monitoring_interval": 300,
+        "auto_progress": true,
+        "max_duration": 86400
+      },
+      "status": "active",
+      "current_phase": "canary",
+      "created_at": "2025-05-31T00:43:28.628457",
+      "updated_at": "2025-05-31T00:43:28.638652"
+    },
+    "29db6659-102e-4be7-b40a-0c8bc9141f02": {
+      "feature_name": "resilience_enhancements",
+      "config": {
+        "feature_name": "resilience_enhancements",
+        "phases": {
+          "canary": {
+            "percentage": 5,
+            "retry_attempts": 2
+          },
+          "staged_rollout": {
+            "percentage": 30,
+            "retry_attempts": 3
+          },
+          "full_rollout": {
+            "percentage": 100,
+            "retry_attempts": 3
+          }
+        },
+        "success_criteria": {
+          "min_requests": 75,
+          "max_error_rate": 0.02,
+          "min_success_rate": 0.95,
+          "min_phase_duration": 2700
+        },
+        "rollback_criteria": {
+          "max_error_rate": 0.06,
+          "min_success_rate": 0.85
+        },
+        "monitoring_interval": 300,
+        "auto_progress": true,
+        "max_duration": 86400
+      },
+      "status": "active",
+      "current_phase": "canary",
+      "created_at": "2025-05-31T00:43:28.642544",
+      "updated_at": "2025-05-31T00:43:28.645017"
+    },
+    "5c41fe0e-4084-4838-a338-13e9be5ae74a": {
+      "feature_name": "semantic_intent_analysis",
+      "config": {
+        "feature_name": "semantic_intent_analysis",
+        "phases": {
+          "canary": {
+            "percentage": 5,
+            "max_requests": 100
+          },
+          "staged_rollout": {
+            "percentage": 25,
+            "max_requests": 1000
+          },
+          "full_rollout": {
+            "percentage": 100
+          }
+        },
+        "success_criteria": {
+          "min_requests": 50,
+          "max_error_rate": 0.02,
+          "max_response_time": 3.0,
+          "min_phase_duration": 1800
+        },
+        "rollback_criteria": {
+          "max_error_rate": 0.05,
+          "max_response_time": 10.0,
+          "min_success_rate": 0.9
+        },
+        "monitoring_interval": 300,
+        "auto_progress": true,
+        "max_duration": 86400
+      },
+      "status": "active",
+      "current_phase": "staged_rollout",
+      "created_at": "2025-05-31T02:17:45.463962",
+      "updated_at": "2025-05-31T02:17:45.667357"
+    },
+    "bc5bba70-161a-47fb-87ed-3d3585d1214b": {
+      "feature_name": "ai_schema_generation",
+      "config": {
+        "feature_name": "ai_schema_generation",
+        "phases": {
+          "canary": {
+            "percentage": 10,
+            "cache_enabled": true
+          },
+          "staged_rollout": {
+            "percentage": 50,
+            "cache_enabled": true
+          },
+          "full_rollout": {
+            "percentage": 100,
+            "cache_enabled": true
+          }
+        },
+        "success_criteria": {
+          "min_requests": 25,
+          "max_error_rate": 0.03,
+          "max_response_time": 5.0,
+          "min_phase_duration": 3600
+        },
+        "rollback_criteria": {
+          "max_error_rate": 0.08,
+          "max_response_time": 15.0
+        },
+        "monitoring_interval": 300,
+        "auto_progress": true,
+        "max_duration": 86400
+      },
+      "status": "active",
+      "current_phase": "canary",
+      "created_at": "2025-05-31T02:17:45.501155",
+      "updated_at": "2025-05-31T02:17:45.527406"
+    },
+    "9435635a-c8b4-45a5-8f92-d2fd8034db5c": {
+      "feature_name": "intelligent_caching",
+      "config": {
+        "feature_name": "intelligent_caching",
+        "phases": {
+          "canary": {
+            "percentage": 15,
+            "cache_ttl": 300
+          },
+          "staged_rollout": {
+            "percentage": 60,
+            "cache_ttl": 600
+          },
+          "full_rollout": {
+            "percentage": 100,
+            "cache_ttl": 3600
+          }
+        },
+        "success_criteria": {
+          "min_requests": 100,
+          "max_error_rate": 0.01,
+          "min_cache_hit_rate": 0.3,
+          "min_phase_duration": 1800
+        },
+        "rollback_criteria": {
+          "max_error_rate": 0.03,
+          "cache_hit_rate": 0.1
+        },
+        "monitoring_interval": 300,
+        "auto_progress": true,
+        "max_duration": 86400
+      },
+      "status": "active",
+      "current_phase": "canary",
+      "created_at": "2025-05-31T02:17:45.544792",
+      "updated_at": "2025-05-31T02:17:45.548282"
+    },
+    "e46d414b-3e43-4787-9a57-62eb3eed509b": {
+      "feature_name": "resilience_enhancements",
+      "config": {
+        "feature_name": "resilience_enhancements",
+        "phases": {
+          "canary": {
+            "percentage": 5,
+            "retry_attempts": 2
+          },
+          "staged_rollout": {
+            "percentage": 30,
+            "retry_attempts": 3
+          },
+          "full_rollout": {
+            "percentage": 100,
+            "retry_attempts": 3
+          }
+        },
+        "success_criteria": {
+          "min_requests": 75,
+          "max_error_rate": 0.02,
+          "min_success_rate": 0.95,
+          "min_phase_duration": 2700
+        },
+        "rollback_criteria": {
+          "max_error_rate": 0.06,
+          "min_success_rate": 0.85
+        },
+        "monitoring_interval": 300,
+        "auto_progress": true,
+        "max_duration": 86400
+      },
+      "status": "active",
+      "current_phase": "canary",
+      "created_at": "2025-05-31T02:17:45.563092",
+      "updated_at": "2025-05-31T02:17:45.615231"
+    }
+  },
+  "metrics": {
+    "092bcacd-b822-4779-9126-8a1d777ce8ce": [
+      {
+        "phase": "canary",
+        "start_time": "2025-05-31T00:31:21.912354",
+        "end_time": "2025-05-31T00:37:07.805443",
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      },
+      {
+        "phase": "staged_rollout",
+        "start_time": "2025-05-31T00:37:07.805498",
+        "end_time": "2025-05-31T00:37:23.348517",
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      },
+      {
+        "phase": "full_rollout",
+        "start_time": "2025-05-31T00:37:23.348591",
+        "end_time": null,
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      }
+    ],
+    "1f9b3d6f-62c5-4df6-b192-c733068da957": [
+      {
+        "phase": "canary",
+        "start_time": "2025-05-31T00:31:21.925734",
+        "end_time": "2025-05-31T00:37:23.352342",
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      },
+      {
+        "phase": "staged_rollout",
+        "start_time": "2025-05-31T00:37:23.352363",
+        "end_time": "2025-05-31T00:47:03.328795",
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      },
+      {
+        "phase": "full_rollout",
+        "start_time": "2025-05-31T00:47:03.328817",
+        "end_time": null,
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      }
+    ],
+    "da858b9e-a498-4d3b-bef6-7df2c9abdc90": [
+      {
+        "phase": "canary",
+        "start_time": "2025-05-31T00:31:21.931648",
+        "end_time": "2025-05-31T00:37:23.353758",
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      },
+      {
+        "phase": "staged_rollout",
+        "start_time": "2025-05-31T00:37:23.353775",
+        "end_time": "2025-05-31T00:47:03.341101",
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      },
+      {
+        "phase": "full_rollout",
+        "start_time": "2025-05-31T00:47:03.341127",
+        "end_time": null,
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      }
+    ],
+    "55903992-7102-4a28-a3c8-0aeee16abb46": [
+      {
+        "phase": "canary",
+        "start_time": "2025-05-31T00:31:21.938297",
+        "end_time": "2025-05-31T00:37:23.356344",
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      },
+      {
+        "phase": "staged_rollout",
+        "start_time": "2025-05-31T00:37:23.356363",
+        "end_time": "2025-05-31T00:47:03.344697",
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      },
+      {
+        "phase": "full_rollout",
+        "start_time": "2025-05-31T00:47:03.344722",
+        "end_time": null,
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      }
+    ],
+    "da20bdc8-c9c3-4c87-956c-8a41a98692e0": [
+      {
+        "phase": "canary",
+        "start_time": "2025-05-31T00:43:28.590475",
+        "end_time": "2025-05-31T00:43:28.655067",
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      },
+      {
+        "phase": "staged_rollout",
+        "start_time": "2025-05-31T00:43:28.655090",
+        "end_time": null,
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      }
+    ],
+    "2bf60fff-5178-47b0-9476-ed7dfd63e608": [
+      {
+        "phase": "canary",
+        "start_time": "2025-05-31T00:43:28.625261",
+        "end_time": null,
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      }
+    ],
+    "9930aaa1-3015-4ba8-9e9b-28cfffc97187": [
+      {
+        "phase": "canary",
+        "start_time": "2025-05-31T00:43:28.638675",
+        "end_time": null,
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      }
+    ],
+    "29db6659-102e-4be7-b40a-0c8bc9141f02": [
+      {
+        "phase": "canary",
+        "start_time": "2025-05-31T00:43:28.645035",
+        "end_time": null,
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      }
+    ],
+    "5c41fe0e-4084-4838-a338-13e9be5ae74a": [
+      {
+        "phase": "canary",
+        "start_time": "2025-05-31T02:17:45.497632",
+        "end_time": "2025-05-31T02:17:45.667346",
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      },
+      {
+        "phase": "staged_rollout",
+        "start_time": "2025-05-31T02:17:45.667369",
+        "end_time": null,
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      }
+    ],
+    "bc5bba70-161a-47fb-87ed-3d3585d1214b": [
+      {
+        "phase": "canary",
+        "start_time": "2025-05-31T02:17:45.527429",
+        "end_time": null,
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      }
+    ],
+    "9435635a-c8b4-45a5-8f92-d2fd8034db5c": [
+      {
+        "phase": "canary",
+        "start_time": "2025-05-31T02:17:45.548301",
+        "end_time": null,
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      }
+    ],
+    "e46d414b-3e43-4787-9a57-62eb3eed509b": [
+      {
+        "phase": "canary",
+        "start_time": "2025-05-31T02:17:45.615289",
+        "end_time": null,
+        "requests_total": 0,
+        "requests_success": 0,
+        "requests_error": 0,
+        "avg_response_time": 0.0,
+        "error_rate": 0.0,
+        "performance_metrics": {}
+      }
+    ]
+  }
+}

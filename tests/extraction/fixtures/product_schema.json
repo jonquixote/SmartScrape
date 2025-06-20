@@ -1,0 +1,132 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Product Schema",
+  "description": "Schema for product data extraction",
+  "type": "object",
+  "required": ["title", "price", "description"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "The product title or name",
+      "minLength": 3
+    },
+    "brand": {
+      "type": "string",
+      "description": "The product brand"
+    },
+    "price": {
+      "type": "object",
+      "description": "The product price information",
+      "required": ["amount"],
+      "properties": {
+        "amount": {
+          "type": "number",
+          "description": "The product price amount",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "description": "The currency code",
+          "default": "USD"
+        },
+        "original_amount": {
+          "type": "number",
+          "description": "The original price amount before any discounts"
+        }
+      }
+    },
+    "description": {
+      "type": "string",
+      "description": "The product description"
+    },
+    "features": {
+      "type": "array",
+      "description": "List of product features",
+      "items": {
+        "type": "string"
+      }
+    },
+    "specifications": {
+      "type": "object",
+      "description": "Technical specifications of the product",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "images": {
+      "type": "array",
+      "description": "List of product images",
+      "items": {
+        "type": "object",
+        "required": ["url"],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "alt": {
+            "type": "string"
+          },
+          "is_main": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+    },
+    "availability": {
+      "type": "string",
+      "description": "Product availability status",
+      "enum": ["in_stock", "out_of_stock", "backorder", "preorder"]
+    },
+    "rating": {
+      "type": "object",
+      "description": "Product rating information",
+      "properties": {
+        "value": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "count": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "sku": {
+      "type": "string",
+      "description": "Stock keeping unit identifier"
+    },
+    "category": {
+      "type": "array",
+      "description": "Product categories",
+      "items": {
+        "type": "string"
+      }
+    },
+    "url": {
+      "type": "string",
+      "description": "URL of the product page",
+      "format": "uri"
+    },
+    "_metadata": {
+      "type": "object",
+      "description": "Metadata about the extraction",
+      "properties": {
+        "extractor": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "extraction_time": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

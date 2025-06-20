@@ -1,0 +1,83 @@
+{
+    "name": "transformation_pipeline",
+    "description": "A pipeline configuration for data transformation",
+    "version": "1.0",
+    "parallel_execution": false,
+    "continue_on_error": false,
+    "timeout": 25,
+    "stages": [
+        {
+            "name": "data_loader",
+            "type": "DataLoaderStage",
+            "config": {
+                "input_format": "json",
+                "encoding": "utf-8",
+                "validate_input": true
+            }
+        },
+        {
+            "name": "field_selection",
+            "type": "FieldSelectionStage",
+            "config": {
+                "include_fields": ["title", "description", "price", "features", "specifications", "metadata"],
+                "exclude_fields": ["internal_id", "raw_html", "debug_info"]
+            }
+        },
+        {
+            "name": "type_conversion",
+            "type": "TypeConversionStage",
+            "config": {
+                "conversions": [
+                    {"field": "price", "type": "float"},
+                    {"field": "quantity", "type": "integer"},
+                    {"field": "is_available", "type": "boolean"},
+                    {"field": "publish_date", "type": "date"}
+                ]
+            }
+        },
+        {
+            "name": "data_enrichment",
+            "type": "DataEnrichmentStage",
+            "config": {
+                "enrichments": [
+                    {
+                        "field": "title",
+                        "operation": "extract_keywords",
+                        "output_field": "keywords"
+                    },
+                    {
+                        "field": "description",
+                        "operation": "sentiment_analysis",
+                        "output_field": "sentiment"
+                    },
+                    {
+                        "field": "price",
+                        "operation": "currency_conversion",
+                        "output_field": "price_usd",
+                        "params": {
+                            "target_currency": "USD"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "data_structuring",
+            "type": "DataStructuringStage",
+            "config": {
+                "structure_template": "templates/product_template.json",
+                "create_nested_objects": true,
+                "handle_arrays": true
+            }
+        },
+        {
+            "name": "output_formatter",
+            "type": "OutputFormatterStage",
+            "config": {
+                "output_format": "json",
+                "pretty_print": true,
+                "include_transformation_metadata": true
+            }
+        }
+    ]
+}

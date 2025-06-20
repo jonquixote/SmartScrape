@@ -1,0 +1,15 @@
+Error executing test: False is not true : Failed to extract data from Ohio Broker Direct: 'str' object is not callable
+
+Traceback (most recent call last):
+  File "/Users/johnny/Downloads/SmartScrape/run_ohio_broker_direct_test.py", line 348, in test_ohio_broker_direct
+    self.assertTrue(
+    ~~~~~~~~~~~~~~~^
+        test_result["success"],
+        ^^^^^^^^^^^^^^^^^^^^^^^
+        f"Failed to extract data from {site_info['name']}: {test_result.get('error', 'Unknown error')}"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/usr/local/Cellar/python@3.13/3.13.2/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/case.py", line 744, in assertTrue
+    raise self.failureException(msg)
+AssertionError: False is not true : Failed to extract data from Ohio Broker Direct: 'str' object is not callable

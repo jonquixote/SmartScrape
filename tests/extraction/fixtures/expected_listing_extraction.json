@@ -1,0 +1,227 @@
+{
+  "total_items": 24,
+  "current_page": 1,
+  "total_pages": 3,
+  "items_per_page": 8,
+  "items": [
+    {
+      "title": "MacBook Pro 14\" M2 Pro - 16GB RAM - 512GB SSD",
+      "url": "/product/apple-macbook-pro-14",
+      "image": "/images/products/macbook-pro-14.jpg",
+      "price": {
+        "amount": 1999.00,
+        "currency": "USD"
+      },
+      "description": null,
+      "brand": "Apple",
+      "rating": {
+        "value": 5.0,
+        "count": 128
+      },
+      "features": [
+        "Apple M2 Pro chip",
+        "16GB unified memory",
+        "512GB SSD storage",
+        "14-inch Liquid Retina XDR display"
+      ],
+      "badges": ["New"]
+    },
+    {
+      "title": "XPS 15 - Intel Core i7 - 16GB RAM - 1TB SSD",
+      "url": "/product/dell-xps-15",
+      "image": "/images/products/dell-xps-15.jpg",
+      "price": {
+        "amount": 1699.00,
+        "currency": "USD",
+        "original_amount": 1899.00
+      },
+      "description": null,
+      "brand": "Dell",
+      "rating": {
+        "value": 4.0,
+        "count": 89
+      },
+      "features": [
+        "Intel Core i7-12700H",
+        "16GB DDR5 RAM",
+        "1TB PCIe NVMe SSD",
+        "15.6\" 4K UHD+ display"
+      ],
+      "badges": ["Sale"]
+    },
+    {
+      "title": "Spectre x360 14\" - Intel Core i7 - 16GB RAM - 1TB SSD",
+      "url": "/product/hp-spectre-x360",
+      "image": "/images/products/hp-spectre-x360.jpg",
+      "price": {
+        "amount": 1499.99,
+        "currency": "USD"
+      },
+      "description": null,
+      "brand": "HP",
+      "rating": {
+        "value": 4.0,
+        "count": 64
+      },
+      "features": [
+        "Intel Core i7-1255U",
+        "16GB RAM",
+        "1TB SSD storage",
+        "14\" 3K2K OLED touch display"
+      ],
+      "badges": []
+    },
+    {
+      "title": "ThinkPad X1 Carbon Gen 10 - Intel Core i7 - 16GB RAM - 512GB SSD",
+      "url": "/product/lenovo-thinkpad-x1-carbon",
+      "image": "/images/products/lenovo-thinkpad-x1.jpg",
+      "price": {
+        "amount": 1649.00,
+        "currency": "USD",
+        "original_amount": 1799.00
+      },
+      "description": null,
+      "brand": "Lenovo",
+      "rating": {
+        "value": 5.0,
+        "count": 132
+      },
+      "features": [
+        "Intel Core i7-1260P",
+        "16GB LPDDR5 RAM",
+        "512GB PCIe SSD",
+        "14\" WUXGA IPS display"
+      ],
+      "badges": ["Best Seller"]
+    },
+    {
+      "title": "ROG Zephyrus G14 - AMD Ryzen 9 - 32GB RAM - 1TB SSD - RTX 3060",
+      "url": "/product/asus-rog-zephyrus",
+      "image": "/images/products/asus-rog-zephyrus.jpg",
+      "price": {
+        "amount": 1549.99,
+        "currency": "USD"
+      },
+      "description": null,
+      "brand": "ASUS",
+      "rating": {
+        "value": 4.0,
+        "count": 97
+      },
+      "features": [
+        "AMD Ryzen 9 6900HS",
+        "32GB DDR5 RAM",
+        "1TB PCIe SSD",
+        "14\" QHD 120Hz display",
+        "NVIDIA GeForce RTX 3060"
+      ],
+      "badges": []
+    }
+  ],
+  "filters": [
+    {
+      "name": "brand",
+      "display_name": "Brand",
+      "values": [
+        {
+          "value": "apple",
+          "display_name": "Apple",
+          "count": 5
+        },
+        {
+          "value": "dell",
+          "display_name": "Dell",
+          "count": 6
+        },
+        {
+          "value": "hp",
+          "display_name": "HP",
+          "count": 4
+        },
+        {
+          "value": "lenovo",
+          "display_name": "Lenovo",
+          "count": 5
+        },
+        {
+          "value": "asus",
+          "display_name": "Asus",
+          "count": 4
+        }
+      ]
+    },
+    {
+      "name": "processor",
+      "display_name": "Processor",
+      "values": [
+        {
+          "value": "intel-i7",
+          "display_name": "Intel Core i7",
+          "count": 8
+        },
+        {
+          "value": "intel-i5",
+          "display_name": "Intel Core i5",
+          "count": 6
+        },
+        {
+          "value": "amd-ryzen7",
+          "display_name": "AMD Ryzen 7",
+          "count": 5
+        },
+        {
+          "value": "apple-m1",
+          "display_name": "Apple M1",
+          "count": 3
+        },
+        {
+          "value": "apple-m2",
+          "display_name": "Apple M2",
+          "count": 2
+        }
+      ]
+    }
+  ],
+  "sort_options": [
+    {
+      "value": "relevance",
+      "display_name": "Relevance",
+      "selected": true
+    },
+    {
+      "value": "price-asc",
+      "display_name": "Price: Low to High",
+      "selected": false
+    },
+    {
+      "value": "price-desc",
+      "display_name": "Price: High to Low",
+      "selected": false
+    },
+    {
+      "value": "rating",
+      "display_name": "Customer Rating",
+      "selected": false
+    },
+    {
+      "value": "newest",
+      "display_name": "Newest Arrivals",
+      "selected": false
+    }
+  ],
+  "breadcrumbs": [
+    {
+      "text": "Home",
+      "url": "/"
+    },
+    {
+      "text": "Computers",
+      "url": "/category/computers"
+    },
+    {
+      "text": "Laptops",
+      "url": null
+    }
+  ],
+  "category": "Laptops"
+}

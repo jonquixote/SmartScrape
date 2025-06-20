@@ -1,0 +1,196 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Listing Schema",
+  "description": "Schema for product listing page data extraction",
+  "type": "object",
+  "required": ["items"],
+  "properties": {
+    "total_items": {
+      "type": "integer",
+      "description": "Total number of items in the listing",
+      "minimum": 0
+    },
+    "current_page": {
+      "type": "integer",
+      "description": "Current page number",
+      "minimum": 1
+    },
+    "total_pages": {
+      "type": "integer",
+      "description": "Total number of pages",
+      "minimum": 1
+    },
+    "items_per_page": {
+      "type": "integer",
+      "description": "Number of items displayed per page",
+      "minimum": 1
+    },
+    "items": {
+      "type": "array",
+      "description": "List of products/items in the listing",
+      "items": {
+        "type": "object",
+        "required": ["title"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Item title/name"
+          },
+          "url": {
+            "type": "string",
+            "description": "URL to the item's detail page",
+            "format": "uri"
+          },
+          "image": {
+            "type": "string",
+            "description": "Main image URL for the item",
+            "format": "uri"
+          },
+          "price": {
+            "type": "object",
+            "description": "Item price information",
+            "properties": {
+              "amount": {
+                "type": "number",
+                "minimum": 0
+              },
+              "currency": {
+                "type": "string"
+              },
+              "original_amount": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Brief description of the item"
+          },
+          "brand": {
+            "type": "string",
+            "description": "Brand name"
+          },
+          "rating": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 5
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "badges": {
+            "type": "array",
+            "description": "Special badges/labels like 'Sale', 'New', etc.",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "filters": {
+      "type": "array",
+      "description": "Available filtering options",
+      "items": {
+        "type": "object",
+        "required": ["name", "values"],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["value"],
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "display_name": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "sort_options": {
+      "type": "array",
+      "description": "Available sorting options",
+      "items": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "selected": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "breadcrumbs": {
+      "type": "array",
+      "description": "Breadcrumb navigation path",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      }
+    },
+    "category": {
+      "type": "string",
+      "description": "Main category of the listing"
+    },
+    "_metadata": {
+      "type": "object",
+      "description": "Metadata about the extraction",
+      "properties": {
+        "extractor": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "extraction_time": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Console Appender (for development) -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
+    </appender>
+
+    <!-- File Appender (for production) -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/app/logs/smartscrape.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>/app/logs/smartscrape.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
+    </appender>
+
+    <!-- Sentry Appender for error reporting -->
+    <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
+        <minimumEventLevel>ERROR</minimumEventLevel>
+    </appender>
+
+    <!-- Root logger -->
+    <root level="${LOG_LEVEL:-INFO}">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
+        <appender-ref ref="SENTRY" />
+    </root>
+
+    <!-- Application specific loggers -->
+    <logger name="web" level="${WEB_LOG_LEVEL:-INFO}" />
+    <logger name="core" level="${CORE_LOG_LEVEL:-INFO}" />
+    <logger name="strategies" level="${STRATEGIES_LOG_LEVEL:-INFO}" />
+    <logger name="controllers" level="${CONTROLLERS_LOG_LEVEL:-INFO}" />
+    <logger name="ai_helpers" level="${AI_LOG_LEVEL:-INFO}" />
+    <logger name="utils" level="${UTILS_LOG_LEVEL:-INFO}" />
+    
+    <!-- Third-party library loggers -->
+    <logger name="uvicorn" level="INFO" />
+    <logger name="fastapi" level="INFO" />
+    <logger name="httpx" level="WARN" />
+    <logger name="playwright" level="WARN" />
+    <logger name="crawl4ai" level="WARN" />
+</configuration>

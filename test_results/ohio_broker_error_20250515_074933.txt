@@ -1,0 +1,7 @@
+Error executing test: argument of type 'NoneType' is not iterable
+
+Traceback (most recent call last):
+  File "/Users/johnny/Downloads/SmartScrape/run_ohio_broker_direct_test.py", line 337, in test_ohio_broker_direct
+    if "Browser search error: Timeout" in test_result.get("error", ""):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: argument of type 'NoneType' is not iterable

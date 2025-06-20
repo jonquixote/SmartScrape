@@ -1,0 +1,61 @@
+{
+    "name": "extraction_pipeline",
+    "description": "A pipeline configuration for content extraction",
+    "version": "1.0",
+    "parallel_execution": false,
+    "continue_on_error": false,
+    "timeout": 30,
+    "stages": [
+        {
+            "name": "http_input",
+            "type": "HttpInputStage",
+            "config": {
+                "respect_robots_txt": true,
+                "timeout": 10,
+                "retry_count": 3,
+                "headers": {
+                    "User-Agent": "SmartScrape/1.0"
+                }
+            }
+        },
+        {
+            "name": "html_processing",
+            "type": "HtmlProcessingStage",
+            "config": {
+                "remove_scripts": true,
+                "remove_styles": true,
+                "extract_main_content": true
+            }
+        },
+        {
+            "name": "content_extraction",
+            "type": "ContentExtractionStage",
+            "config": {
+                "extract_text": true,
+                "extract_links": true,
+                "extract_images": true,
+                "extract_tables": true,
+                "extract_metadata": true
+            }
+        },
+        {
+            "name": "content_normalization",
+            "type": "ContentNormalizationStage",
+            "config": {
+                "normalize_whitespace": true,
+                "normalize_dates": true,
+                "normalize_currencies": true,
+                "normalize_units": true
+            }
+        },
+        {
+            "name": "json_output",
+            "type": "JsonOutputStage",
+            "config": {
+                "pretty_print": true,
+                "include_metadata": true,
+                "include_source": false
+            }
+        }
+    ]
+}

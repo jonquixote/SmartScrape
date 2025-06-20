@@ -1,0 +1,761 @@
+/* General Body Styles */
+body {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    transition: background-color 0.3s ease, color 0.3s ease;
+    line-height: 1.6;
+    overflow: hidden; /* Hide overflow for background elements */
+    position: relative; /* For positioning background elements */
+}
+
+/* Dark Theme Variables */
+:root[data-theme="dark"] {
+    --background-color: #1a1a2e;
+    --text-color: #e0e0e0;
+    --primary-color: #0f3460;
+    --secondary-color: #e94560;
+    --accent-color: #533483;
+    --card-background: #2e2e4a;
+    --border-color: #4a4a6a;
+    --input-background: #3a3a5a;
+    --placeholder-color: #a0a0c0;
+    --button-hover: #16213e;
+    --box-shadow: rgba(0, 0, 0, 0.3);
+}
+
+/* Main Content Wrapper */
+.main-content {
+    position: relative;
+    z-index: 10; /* Ensure content is above background elements */
+    width: 100%;
+    max-width: 1200px;
+    padding: 20px;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 1; /* Allow main content to take available space */
+}
+
+/* Hero Section */
+.hero-section {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 80px 20px;
+    text-align: center;
+    background-color: var(--card-background); /* Use card background for the main content area */
+    border-radius: 20px;
+    box-shadow: 0 15px 30px var(--box-shadow);
+    max-width: 800px; /* Constrain width for a more focused look */
+    width: 100%;
+    border: 1px solid var(--border-color);
+}
+
+.hero-title {
+    font-size: 4.5em; /* Larger title */
+    margin-bottom: 10px;
+    color: var(--text-color);
+    line-height: 1.1;
+    font-weight: 700;
+    background: linear-gradient(45deg, var(--secondary-color), var(--accent-color));
+    -webkit-background-clip: text;
+    background-clip: text; /* Standard property */
+    -webkit-text-fill-color: transparent;
+    animation: textGlow 2s infinite alternate; /* Add a subtle glow animation */
+}
+
+.hero-subtitle {
+    font-size: 1.6em; /* Larger subtitle */
+    color: var(--text-color);
+    margin-bottom: 50px;
+    opacity: 0.9;
+    max-width: 600px;
+}
+
+.input-group {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center; /* Align items vertically */
+    width: 100%;
+}
+
+/* Styles for the new controls group next to the input */
+.controls-group {
+    display: flex;
+    gap: 12px; /* Slightly increased gap */
+    align-items: center;
+}
+
+.btn-icon {
+    background-color: transparent; /* Ensure transparent background */
+    border: 2px solid var(--border-color);
+    color: var(--text-color);
+    padding: 0; /* Remove padding if icon itself has it or to precisely control size */
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
+    height: 58px; /* Adjusted to align better with input */
+    width: 58px; /* Make it square */
+}
+
+.btn-icon:hover {
+    background-color: var(--input-background);
+    border-color: var(--accent-color);
+    transform: translateY(-2px);
+}
+
+.btn-icon svg {
+    width: 26px;
+    height: 26px;
+    fill: currentColor; /* Ensure SVG uses the button's text color */
+}
+
+/* HAL-9000 Style AI Status Light */
+.ai-status-light-button {
+    background-color: transparent; /* Ensure transparent background */
+    border: 2px solid #a0a0a0; /* Base metallic border */
+    padding: 4px; /* Padding around the inner light */
+    border-radius: 50%; /* Make it circular */
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 58px; /* Match settings button */
+    height: 58px; /* Match settings button */
+    transition: border-color 0.3s ease, transform 0.2s ease;
+    /* Add metallic sheen effect */
+    background-image: linear-gradient(to bottom, #cccccc, #a0a0a0, #cccccc);
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5), inset 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+.ai-status-light-button:hover {
+    border-color: var(--accent-color); /* Keep hover effect */
+    transform: translateY(-2px);
+}
+
+.hal-light {
+    width: 28px; /* Size of the light */
+    height: 28px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 60% 35%, #ff0000 0%, #8b0000 70%, #4d0000 100%); /* Deep red radial gradient */
+    box-shadow:
+        0 0 15px 5px rgba(255, 0, 0, 0.7), /* Outer red glow */
+        inset 0 0 10px rgba(255, 255, 0, 0.5), /* Inner yellow glow */
+        inset 0 0 20px rgba(255, 0, 0, 0.8), /* Deeper red inner shadow */
+        0 0 0 2px rgba(255, 255, 255, 0.1); /* Subtle white outline for definition */
+    transition: background-color 0.5s ease, box-shadow 0.5s ease;
+    position: relative;
+    overflow: hidden; /* Hide overflow for reflections */
+    /* Ensure a dark background within the button */
+    background-color: #000;
+}
+
+/* Central yellow dot */
+.hal-light::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px; /* Size of the yellow dot */
+    height: 6px;
+    background-color: #ffff00; /* Yellow color */
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 5px 2px rgba(255, 255, 0, 0.8); /* Yellow dot glow */
+    z-index: 1;
+}
+
+/* Reflections */
+.hal-light::after {
+    content: '';
+    position: absolute;
+    top: 2px; /* Adjusted position for reflection */
+    left: 50%; /* Center horizontally */
+    width: 20px; /* Wider reflection */
+    height: 8px; /* Shorter height */
+    background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.8) 50%, rgba(255, 255, 255, 0) 100%);
+    border-radius: 50% / 100% 100% 0 0; /* Curved top reflection */
+    transform: translateX(-50%) rotate(0deg); /* Center and no rotation */
+    opacity: 0.7;
+    filter: blur(1px); /* Soften the reflection */
+}
+
+
+.hal-light.active {
+    /* Keep the HAL-9000 look but indicate active state */
+    background: radial-gradient(circle at 60% 35%, #00ff00 0%, #008b00 70%, #004d00 100%); /* Green radial gradient */
+    box-shadow:
+        0 0 15px 5px rgba(0, 255, 0, 0.7), /* Outer green glow */
+        inset 0 0 10px rgba(255, 255, 0, 0.5), /* Inner yellow glow */
+        inset 0 0 20px rgba(0, 255, 0, 0.8), /* Deeper green inner shadow */
+        0 0 0 2px rgba(255, 255, 255, 0.1); /* Subtle white outline for definition */
+}
+
+.hal-light.active::before {
+     /* Subtle change for active state yellow dot */
+     box-shadow: 0 0 8px 3px rgba(255, 255, 0, 1); /* Brighter yellow dot glow */
+}
+
+/* Status text below buttons */
+.status-text-container {
+    display: flex;
+    justify-content: flex-end; /* Align to the right */
+    /* Adjust width and alignment if the input group itself is centered */
+    /* This might need to be relative to the .input-group or .hero-content */
+    width: 100%; /* Take full width of its parent initially */
+    padding-right: 0; /* Remove padding if aligning within a flex child */
+    margin-top: 8px;
+    /* The following is a more robust way if .input-group is the reference */
+    /* position: absolute; */ /* If fine-tuning absolute position */
+    /* bottom: -25px; */
+    /* right: 0; */ /* Or align with the start of the buttons */
+    text-align: right; /* Ensure text itself is right-aligned */
+}
+
+#ai-status-text {
+    font-size: 0.85em;
+    color: var(--placeholder-color);
+    padding-right: 10px; /* Add some padding so it's not flush with the edge of buttons */
+}
+
+
+input[type="text"] {
+    flex-grow: 1;
+    min-width: 200px; /* Ensure input has a minimum width */
+    padding: 20px 30px; /* Larger padding */
+    border: 2px solid var(--border-color);
+    border-radius: 12px; /* More rounded corners */
+    font-size: 1.2em; /* Larger font size */
+    background-color: var(--input-background);
+    color: var(--text-color);
+    outline: none;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    max-width: 500px; /* Max width for input */
+}
+
+input[type="text"]::placeholder {
+    color: var(--placeholder-color);
+}
+
+input[type="text"]:focus {
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 5px rgba(233, 69, 96, 0.3); /* More prominent focus shadow */
+}
+
+.btn-primary {
+    padding: 20px 40px; /* Larger padding */
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    border-radius: 12px; /* More rounded corners */
+    font-size: 1.2em; /* Larger font size */
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+    white-space: nowrap;
+    letter-spacing: 0.5px; /* Slightly more spaced letters */
+}
+
+.btn-primary:hover {
+    background-color: var(--button-hover);
+    transform: translateY(-5px); /* More pronounced lift */
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3); /* Stronger shadow on hover */
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.btn-primary:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-primary.small {
+    padding: 8px 16px;
+    font-size: 0.9em;
+    border-radius: 8px;
+}
+
+/* AI Configuration Styles */
+.btn-secondary {
+    background: var(--accent-color);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 30px;
+    font-size: 1.1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-left: 10px;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-secondary:hover {
+    background: #6b4ba0;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(107, 75, 160, 0.4);
+}
+
+.btn-secondary.small {
+    padding: 8px 16px;
+    font-size: 0.9em;
+    border-radius: 8px;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background-color: var(--card-background);
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px var(--box-shadow);
+    width: 90%;
+    max-width: 500px; /* Default max-width */
+    border: 1px solid var(--border-color);
+    position: relative;
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+.modal-content.large {
+    max-width: 850px; /* Slightly wider for more content */
+    max-height: 90vh; /* Limit height and allow scrolling in body */
+    overflow-y: hidden; /* Prevent double scrollbars, body will scroll */
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.8em;
+    color: var(--text-color);
+}
+
+.modal-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 20px;
+}
+
+.tab-link {
+    padding: 10px 20px;
+    cursor: pointer;
+    border: none;
+    background-color: transparent;
+    color: var(--placeholder-color);
+    font-size: 1.1em;
+    transition: color 0.3s ease, border-bottom 0.3s ease;
+    border-bottom: 3px solid transparent;
+}
+
+.tab-link.active {
+    color: var(--text-color);
+    border-bottom: 3px solid var(--accent-color);
+    font-weight: 600;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.modal-body {
+    padding-top: 20px;
+    max-height: calc(90vh - 150px); /* Adjust based on header/footer height */
+    overflow-y: auto; /* Allow scrolling within modal body if content exceeds height */
+}
+
+
+/* Popover for AI Status Light */
+.popover {
+    position: absolute;
+    background-color: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    z-index: 1010; /* Higher than modal overlay if it can appear on top */
+    width: 320px;
+    padding: 20px;
+    animation: modalFadeIn 0.2s ease-out;
+    /* Positioning will be handled by JS */
+}
+
+.popover-content h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: var(--text-color);
+    font-size: 1.2em;
+}
+
+/* Ensure form groups in popover and modal tabs are styled consistently */
+#enhanced-dashboard-modal .form-group,
+#ai-status-popover .form-group {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column; /* Stack label and input/controls */
+}
+
+#enhanced-dashboard-modal .form-group label,
+#ai-status-popover .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-color); /* Brighter label text */
+    font-weight: 500;
+    font-size: 1em;
+}
+
+#enhanced-dashboard-modal .form-group input[type="password"],
+#enhanced-dashboard-modal .form-group select.styled-select,
+#ai-status-popover .form-group input[type="password"],
+#ai-status-popover .form-group select.styled-select {
+    width: 100%; /* Full width within the form group */
+    padding: 12px 15px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--input-background);
+    color: var(--text-color);
+    font-size: 1em;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+}
+
+#enhanced-dashboard-modal .form-group input[type="password"]:focus,
+#enhanced-dashboard-modal .form-group select.styled-select:focus,
+#ai-status-popover .form-group input[type="password"]:focus,
+#ai-status-popover .form-group select.styled-select:focus {
+    border-color: var(--accent-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(var(--accent-color), 0.2);
+}
+
+/* Styled Select */
+.styled-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22/%3E%3C/svg%3E');
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    background-size: 12px auto;
+    padding-right: 40px; /* Make space for the arrow */
+}
+
+/* Toggle Buttons for Features */
+.btn-toggle {
+    padding: 10px 18px;
+    border: 1px solid var(--border-color);
+    background-color: var(--input-background);
+    color: var(--text-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+    font-weight: 500;
+}
+
+.btn-toggle.active {
+    background-color: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
+
+.btn-toggle:hover:not(.active) {
+    border-color: var(--accent-color);
+    background-color: #414163; /* Slightly lighter than input for hover */
+}
+
+/* Specific layout for feature controls */
+#feature-controls-tab .form-group {
+    display: flex;
+    flex-direction: row; /* Align label and controls in a row */
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+#feature-controls-tab .form-group:last-child {
+    border-bottom: none;
+}
+
+#feature-controls-tab .form-group label {
+    flex-grow: 1;
+    margin-bottom: 0; /* Override default from column layout */
+    color: var(--text-color);
+}
+
+.control-elements {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.feature-status-display {
+    margin-top: 25px;
+    padding: 15px;
+    background-color: var(--input-background);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.feature-status-display h4 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: var(--text-color);
+}
+
+.feature-status-display p {
+    margin: 5px 0;
+    font-size: 0.95em;
+    color: var(--placeholder-color);
+}
+
+.feature-status-display p span {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+/* AI Provider Configuration in Modal */
+.ai-provider-section h4 {
+    margin-bottom: 15px;
+    font-size: 1.3em;
+}
+
+.provider-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.provider-card {
+    background-color: var(--input-background);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.provider-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+    border-color: var(--accent-color);
+}
+
+.provider-card.selected {
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 10px 2px rgba(var(--secondary-color), 0.5);
+}
+
+.provider-logo {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 10px;
+    object-fit: contain;
+}
+
+.provider-card h4 {
+    margin-top: 0;
+    margin-bottom: 5px;
+    font-size: 1.2em;
+    color: var(--text-color);
+}
+
+.provider-card p {
+    font-size: 0.9em;
+    color: var(--placeholder-color);
+    margin-bottom: 10px;
+}
+
+.provider-status {
+    font-size: 0.8em;
+    font-weight: 500;
+    color: var(--accent-color);
+}
+
+.api-key-section h4 {
+    margin-bottom: 15px;
+    font-size: 1.2em;
+    color: var(--text-color);
+}
+
+.input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-with-icon input[type="password"] {
+    padding-right: 45px; /* Space for the icon button */
+}
+
+.btn-icon-toggle {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 45px;
+    background: transparent;
+    border: none;
+    padding: 0 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--placeholder-color);
+}
+
+.btn-icon-toggle:hover {
+    color: var(--text-color);
+}
+
+.btn-icon-toggle svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.test-result {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 0.9em;
+}
+
+.test-result.success {
+    background-color: rgba(46, 204, 113, 0.1);
+    border: 1px solid #2ecc71;
+    color: #2ecc71;
+}
+
+.test-result.error {
+    background-color: rgba(231, 76, 60, 0.1);
+    border: 1px solid #e74c3c;
+    color: #e74c3c;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .hero-title {
+        font-size: 3em;
+    }
+    .hero-subtitle {
+        font-size: 1.2em;
+    }
+    .input-group {
+        flex-direction: column;
+        align-items: stretch; /* Make input and button full width */
+    }
+    .controls-group {
+        justify-content: center; /* Center buttons below input on small screens */
+        margin-top: 15px;
+    }
+    #user-query-input {
+        max-width: none; /* Allow full width */
+    }
+    .status-text-container {
+        justify-content: center; /* Center status text */
+        text-align: center;
+        padding-right: 0;
+        margin-top: 10px;
+    }
+    .modal-content.large {
+        width: 95%;
+        padding: 20px;
+    }
+    .provider-grid {
+        grid-template-columns: 1fr; /* Stack provider cards */
+    }
+    #feature-controls-tab .form-group {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    #feature-controls-tab .form-group label {
+        margin-bottom: 8px;
+    }
+    .control-elements {
+        width: 100%;
+        justify-content: space-between;
+    }
+    .control-elements .btn-toggle {
+        flex-grow: 1; /* Allow enable/disable to take more space if select is small */
+    }
+    .control-elements select.styled-select {
+        max-width: 180px; /* Limit select width */
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-title {
+        font-size: 2.5em;
+    }
+    .hero-subtitle {
+        font-size: 1em;
+    }
+    .btn-primary,
+    .btn-secondary {
+        font-size: 1em;
+        padding: 15px 20px;
+    }
+    .btn-icon,
+    .ai-status-light-button {
+        height: 50px;
+        width: 50px;
+    }
+    .btn-icon svg {
+        width: 22px;
+        height: 22px;
+    }
+    .hal-light {
+        width: 22px;
+        height: 22px;
+    }
+    .modal-header h2 {
+        font-size: 1.5em;
+    }
+    .tab-link {
+        font-size: 1em;
+        padding: 8px 12px;
+    }
+}

@@ -1,0 +1,11 @@
+{
+  "site": "Ohio Broker Direct",
+  "url": "https://www.ohiobrokerdirect.com/",
+  "query": "homes in Cleveland, OH",
+  "timestamp": "2025-05-17T16:15:27.561834",
+  "success": false,
+  "results_count": 0,
+  "execution_time": 0,
+  "field_coverage": {},
+  "error": "Search error: FormSearchEngine._search_with_browser() got an unexpected keyword argument 'location'"
+}

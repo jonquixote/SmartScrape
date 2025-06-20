@@ -1,0 +1,11 @@
+{
+  "site": "Ohio Broker Direct",
+  "url": "https://www.ohiobrokerdirect.com/",
+  "query": "homes in Cleveland, OH",
+  "timestamp": "2025-05-14T05:13:13.209829",
+  "success": false,
+  "results_count": 0,
+  "execution_time": 0,
+  "field_coverage": {},
+  "error": "'AdaptiveScraper' object has no attribute '_update_strategy_performance'"
+}

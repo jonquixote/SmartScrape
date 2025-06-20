@@ -1,0 +1,24 @@
+{
+  "success": true,
+  "results_url": "https://ohiobrokerdirect.com/listing-packages/",
+  "result_count": 1,
+  "results": [
+    {
+      "title": "DELUXE",
+      "url": "https://ohiobrokerdirect.com/product/deluxe-listing-plan/",
+      "description": "DELUXEIntermediate Services299SALELocal MLS Listing (Residential, Multi-Family, Commercial Farm & Land)Commercial is an option in all MLS's excluding DaytonREALTOR MLSSeller\u2019s name, phone number & email is uploaded into MLS(All leads directed to Seller)OBD HAS NO HIDDEN BACK END FEES AT CLOSING!99 p",
+      "source_url": "https://ohiobrokerdirect.com/listing-packages/"
+    }
+  ],
+  "has_pagination": true,
+  "strategy": "form_search_engine",
+  "metadata": {
+    "query": "homes in Cleveland, OH Cleveland, OH",
+    "domain": "www.ohiobrokerdirect.com",
+    "pagination_enabled": true,
+    "max_pages_setting": 5,
+    "target_result_count": 100,
+    "site_analysis_used": true
+  },
+  "execution_time": 62.56324815750122
+}

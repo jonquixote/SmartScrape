@@ -1,0 +1,1 @@
+{"data": {"container": [".listing", ".list", ".result", ".results", "[class*='listing']", "[class*='result']", "article", ".product", "[class*='product']", ".item", "[class*='item']"], "link": ["a", ".title a", ".name a", "h2 a", "h3 a"]}, "timestamp": 1745991828.293324, "context": {"site_type": "content"}}

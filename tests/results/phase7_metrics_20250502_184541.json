@@ -1,0 +1,130 @@
+{
+  "error": "expected str, bytes or os.PathLike object, not list",
+  "overall_success_rate": "8.33%",
+  "by_category": {
+    "real_estate": {
+      "total_tests": 3,
+      "success_count": 0,
+      "failure_count": 3,
+      "success_rate": "0.0%",
+      "avg_processing_time": 0.0
+    },
+    "ecommerce": {
+      "total_tests": 3,
+      "success_count": 1,
+      "failure_count": 2,
+      "success_rate": "33.33%",
+      "avg_processing_time": 0.0
+    },
+    "content": {
+      "total_tests": 3,
+      "success_count": 0,
+      "failure_count": 3,
+      "success_rate": "0.0%",
+      "avg_processing_time": 0.0
+    },
+    "directory": {
+      "total_tests": 3,
+      "success_count": 0,
+      "failure_count": 3,
+      "success_rate": "0.0%",
+      "avg_processing_time": 0.0
+    }
+  },
+  "extraction_quality": {
+    "overall_quality_score": 8.333333333333332,
+    "field_accuracy": {
+      "rating": 0.0,
+      "price": 0.0,
+      "url": 100.0,
+      "title": 100.0,
+      "description": 0.0,
+      "image": 0.0
+    },
+    "completeness": 33.33333333333333,
+    "relevance": 8.333333333333332,
+    "by_site_category": {
+      "real_estate": {
+        "total_tests": 3,
+        "successful_tests": 0,
+        "quality_score": 0.0,
+        "avg_field_coverage": 0.0
+      },
+      "e_commerce": {
+        "total_tests": 3,
+        "successful_tests": 1,
+        "quality_score": 33.33333333333333,
+        "avg_field_coverage": 33.33333333333333
+      },
+      "content": {
+        "total_tests": 2,
+        "successful_tests": 0,
+        "quality_score": 0.0,
+        "avg_field_coverage": 0.0
+      },
+      "unknown": {
+        "total_tests": 2,
+        "successful_tests": 0,
+        "quality_score": 0.0,
+        "avg_field_coverage": 0.0
+      },
+      "directory": {
+        "total_tests": 2,
+        "successful_tests": 0,
+        "quality_score": 0.0,
+        "avg_field_coverage": 0.0
+      }
+    }
+  },
+  "field_coverage": {
+    "overall_coverage": 33.33333333333333,
+    "by_field": {
+      "title": {
+        "attempts": 1,
+        "successes": 1,
+        "coverage_pct": 100.0
+      },
+      "price": {
+        "attempts": 1,
+        "successes": 0,
+        "coverage_pct": 0.0
+      },
+      "image": {
+        "attempts": 1,
+        "successes": 0,
+        "coverage_pct": 0.0
+      },
+      "rating": {
+        "attempts": 1,
+        "successes": 0,
+        "coverage_pct": 0.0
+      },
+      "description": {
+        "attempts": 1,
+        "successes": 0,
+        "coverage_pct": 0.0
+      },
+      "url": {
+        "attempts": 1,
+        "successes": 1,
+        "coverage_pct": 100.0
+      }
+    },
+    "by_category": {
+      "e_commerce": {
+        "fields": [
+          "rating",
+          "price",
+          "url",
+          "title",
+          "description",
+          "image"
+        ],
+        "field_count": 6,
+        "attempts": 6,
+        "successes": 2,
+        "coverage_pct": 33.33333333333333
+      }
+    }
+  }
+}

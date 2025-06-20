@@ -1,0 +1,11 @@
+{
+  "site": "Ohio Broker Direct",
+  "url": "https://www.ohiobrokerdirect.com/",
+  "query": "homes in Cleveland, OH",
+  "timestamp": "2025-05-15T07:30:33.303241",
+  "success": false,
+  "results_count": 0,
+  "execution_time": 0,
+  "field_coverage": {},
+  "error": "Browser search error: Page.goto: Timeout 30000ms exceeded.\nCall log:\n  - navigating to \"https://www.ohiobrokerdirect.com/\", waiting until \"networkidle\"\n"
+}

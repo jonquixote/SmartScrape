@@ -1,0 +1,7 @@
+Error executing test: 'field_coverage_pct'
+
+Traceback (most recent call last):
+  File "/Users/johnny/Downloads/SmartScrape/run_ohio_direct_test.py", line 178, in test_ohio_broker_direct
+    logger.info(f"Field coverage: {test_result['field_coverage_pct']}%")
+                                   ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+KeyError: 'field_coverage_pct'

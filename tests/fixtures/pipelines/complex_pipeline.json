@@ -1,0 +1,240 @@
+{
+    "name": "complex_pipeline",
+    "description": "A complex pipeline configuration with branching and conditional paths",
+    "version": "1.0",
+    "parallel_execution": true,
+    "continue_on_error": true,
+    "timeout": 60,
+    "stages": [
+        {
+            "name": "input_source",
+            "type": "MultiSourceInputStage",
+            "config": {
+                "sources": [
+                    {
+                        "type": "http",
+                        "priority": 1
+                    },
+                    {
+                        "type": "file",
+                        "priority": 2
+                    },
+                    {
+                        "type": "database",
+                        "priority": 3
+                    }
+                ],
+                "auto_select": true
+            }
+        },
+        {
+            "name": "content_classifier",
+            "type": "ContentClassifierStage",
+            "config": {
+                "classifiers": ["type", "language", "quality"],
+                "min_confidence": 0.7,
+                "output_field": "classification"
+            }
+        },
+        {
+            "name": "branch_decision",
+            "type": "ConditionalBranchStage",
+            "config": {
+                "conditions": [
+                    {
+                        "field": "classification.type",
+                        "operator": "equals",
+                        "value": "product",
+                        "next_stage": "product_branch"
+                    },
+                    {
+                        "field": "classification.type",
+                        "operator": "equals",
+                        "value": "article",
+                        "next_stage": "article_branch"
+                    },
+                    {
+                        "field": "classification.type",
+                        "operator": "equals",
+                        "value": "listing",
+                        "next_stage": "listing_branch"
+                    }
+                ],
+                "default_stage": "generic_branch"
+            }
+        },
+        
+        {
+            "name": "product_branch",
+            "type": "SubPipelineStage",
+            "config": {
+                "stages": [
+                    {
+                        "name": "product_extraction",
+                        "type": "ProductExtractionStage",
+                        "config": {
+                            "extract_price": true,
+                            "extract_specifications": true,
+                            "extract_images": true,
+                            "extract_reviews": true
+                        }
+                    },
+                    {
+                        "name": "product_validation",
+                        "type": "ProductValidationStage",
+                        "config": {
+                            "required_fields": ["name", "price", "description"],
+                            "price_validation": true
+                        }
+                    },
+                    {
+                        "name": "product_enrichment",
+                        "type": "ProductEnrichmentStage",
+                        "config": {
+                            "add_categories": true,
+                            "add_brand_info": true,
+                            "normalize_specifications": true
+                        }
+                    }
+                ],
+                "output_field": "product_data",
+                "next_stage": "merge_results"
+            }
+        },
+        
+        {
+            "name": "article_branch",
+            "type": "SubPipelineStage",
+            "config": {
+                "stages": [
+                    {
+                        "name": "article_extraction",
+                        "type": "ArticleExtractionStage",
+                        "config": {
+                            "extract_title": true,
+                            "extract_author": true,
+                            "extract_date": true,
+                            "extract_content": true
+                        }
+                    },
+                    {
+                        "name": "article_cleaning",
+                        "type": "ArticleCleaningStage",
+                        "config": {
+                            "remove_ads": true,
+                            "remove_sidebars": true,
+                            "clean_formatting": true
+                        }
+                    },
+                    {
+                        "name": "article_summarization",
+                        "type": "ArticleSummarizationStage",
+                        "config": {
+                            "summary_length": 200,
+                            "extract_keywords": true,
+                            "extract_entities": true
+                        }
+                    }
+                ],
+                "output_field": "article_data",
+                "next_stage": "merge_results"
+            }
+        },
+        
+        {
+            "name": "listing_branch",
+            "type": "SubPipelineStage",
+            "config": {
+                "stages": [
+                    {
+                        "name": "listing_extraction",
+                        "type": "ListingExtractionStage",
+                        "config": {
+                            "item_selector": ".listing-item",
+                            "extract_pagination": true,
+                            "max_items": 100
+                        }
+                    },
+                    {
+                        "name": "listing_processing",
+                        "type": "ListingProcessingStage",
+                        "config": {
+                            "process_item_links": true,
+                            "extract_common_fields": true,
+                            "detect_duplicates": true
+                        }
+                    }
+                ],
+                "output_field": "listing_data",
+                "next_stage": "merge_results"
+            }
+        },
+        
+        {
+            "name": "generic_branch",
+            "type": "SubPipelineStage",
+            "config": {
+                "stages": [
+                    {
+                        "name": "generic_extraction",
+                        "type": "GenericExtractionStage",
+                        "config": {
+                            "extract_text": true,
+                            "extract_images": true,
+                            "extract_links": true
+                        }
+                    }
+                ],
+                "output_field": "generic_data",
+                "next_stage": "merge_results"
+            }
+        },
+        
+        {
+            "name": "merge_results",
+            "type": "ResultsMergeStage",
+            "config": {
+                "merge_fields": ["product_data", "article_data", "listing_data", "generic_data"],
+                "preserve_source_field": true,
+                "include_metadata": true
+            }
+        },
+        
+        {
+            "name": "quality_filter",
+            "type": "QualityFilterStage",
+            "config": {
+                "min_quality_score": 0.6,
+                "check_completeness": true,
+                "required_fields_by_type": {
+                    "product": ["name", "price"],
+                    "article": ["title", "content"],
+                    "listing": ["items"]
+                }
+            }
+        },
+        
+        {
+            "name": "error_handler",
+            "type": "ErrorHandlerStage",
+            "config": {
+                "handle_validation_errors": true,
+                "handle_extraction_errors": true,
+                "generate_error_report": true,
+                "fail_on_critical": true,
+                "critical_stages": ["input_source", "merge_results", "output"]
+            }
+        },
+        
+        {
+            "name": "output",
+            "type": "MultiFormatOutputStage",
+            "config": {
+                "formats": ["json", "csv", "xml"],
+                "include_metadata": true,
+                "compress_large_outputs": true,
+                "split_by_type": true
+            }
+        }
+    ]
+}

@@ -1,0 +1,34 @@
+{
+  "comparisons": [
+    {
+      "operation": "test_operation",
+      "timestamp": "2025-05-23T19:25:58.971305",
+      "measurements": {
+        "legacy": {
+          "start_time": 1748053558.9596858,
+          "end_time": 1748053558.9712489,
+          "duration": 0.01156306266784668
+        },
+        "pipeline": {
+          "start_time": 1748053558.9712782,
+          "end_time": 1748053558.971284,
+          "duration": 5.7220458984375e-06
+        }
+      },
+      "summary": {
+        "legacy_time": 0.01156306266784668,
+        "pipeline_time": 5.7220458984375e-06,
+        "ratio": 0.0004948555640322481,
+        "pipeline_overhead": -99.95051444359677,
+        "legacy_faster": false,
+        "pipeline_faster": true,
+        "within_threshold": true
+      }
+    }
+  ],
+  "summary": {
+    "legacy_faster_count": 0,
+    "pipeline_faster_count": 1,
+    "total_comparisons": 1
+  }
+}
