@@ -17,6 +17,9 @@ from strategies.core.strategy_context import StrategyContext
 from strategies.core.strategy_types import StrategyType, StrategyCapability, strategy_metadata
 from strategies.base_strategy import BaseStrategy
 
+# Import the Universal Hunter for intelligent content hunting
+from intelligence.universal_hunter import UniversalHunter
+
 
 @dataclass
 class UniversalExtractionPlan:
@@ -69,13 +72,17 @@ class CompositeUniversalStrategy(CompositeStrategy):
         super().__init__(context)
         self.logger = logging.getLogger(__name__)
         
+        # Initialize Universal Hunter for intelligent content hunting
+        self.universal_hunter = UniversalHunter()
+        
         # Strategy priorities and configurations
         self.strategy_priorities = {
-            'universal_crawl4ai': 1,  # Highest priority for complex sites
-            'dom_strategy': 2,        # Good for structured sites
-            'api_strategy': 3,        # For API-accessible content
-            'form_search_engine': 4,       # For form-based searches
-            'url_param_strategy': 5   # For URL parameter searches
+            'universal_hunter': 0,        # Highest priority for intelligent hunting
+            'universal_crawl4ai': 1,      # High priority for complex sites
+            'dom_strategy': 2,            # Good for structured sites
+            'api_strategy': 3,            # For API-accessible content
+            'form_search_engine': 4,      # For form-based searches
+            'url_param_strategy': 5       # For URL parameter searches
         }
         
         # Performance tracking
@@ -86,6 +93,7 @@ class CompositeUniversalStrategy(CompositeStrategy):
         self.progressive_collection_enabled = getattr(context.config if context else None, 'PROGRESSIVE_DATA_COLLECTION', True)
         self.ai_schema_generation_enabled = getattr(context.config if context else None, 'AI_SCHEMA_GENERATION_ENABLED', True)
         self.semantic_search_enabled = getattr(context.config if context else None, 'SEMANTIC_SEARCH_ENABLED', True)
+        self.intelligent_hunting_enabled = getattr(context.config if context else None, 'INTELLIGENT_HUNTING_ENABLED', True)
     
     def supports_enhanced_context(self) -> bool:
         """Indicate that this strategy supports enhanced context with intent analysis and schema"""
@@ -260,6 +268,19 @@ class CompositeUniversalStrategy(CompositeStrategy):
         Returns:
             Name of the selected primary strategy
         """
+        # Use Universal Hunter for content-type specific queries
+        if self.intelligent_hunting_enabled and intent_analysis:
+            content_type = intent_analysis.get('content_type', '').upper()
+            if content_type in ['NEWS_ARTICLES', 'PRODUCT_INFORMATION', 'JOB_LISTINGS', 'REVIEWS_RATINGS']:
+                self.logger.info(f"🎯 Selecting Universal Hunter for content type: {content_type}")
+                return 'universal_hunter'
+            
+            # Also use Universal Hunter for temporal queries (latest, recent, etc.)
+            temporal_context = intent_analysis.get('temporal_context', {})
+            if temporal_context.get('is_temporal') and 'latest' in str(temporal_context.get('temporal_indicators', [])):
+                self.logger.info("🎯 Selecting Universal Hunter for temporal query")
+                return 'universal_hunter'
+        
         # Default to universal_crawl4ai for complex extractions
         if intent_analysis.get('complexity', 'medium') in ['high', 'very_high']:
             return 'universal_crawl4ai'
@@ -296,6 +317,12 @@ class CompositeUniversalStrategy(CompositeStrategy):
         """
         fallback_strategies = []
         
+        # Add Universal Hunter as fallback for content-type queries if not primary
+        if primary_strategy != 'universal_hunter' and self.intelligent_hunting_enabled:
+            content_type = intent_analysis.get('content_type', '').upper()
+            if content_type in ['NEWS_ARTICLES', 'PRODUCT_INFORMATION', 'JOB_LISTINGS']:
+                fallback_strategies.append('universal_hunter')
+        
         # Always include universal_crawl4ai as fallback if not primary
         if primary_strategy != 'universal_crawl4ai':
             fallback_strategies.append('universal_crawl4ai')
@@ -324,6 +351,10 @@ class CompositeUniversalStrategy(CompositeStrategy):
         """
         try:
             primary_strategy_name = plan.primary_strategy
+            
+            # Handle Universal Hunter strategy
+            if primary_strategy_name == 'universal_hunter':
+                return await self._execute_universal_hunter(url, plan, kwargs)
             
             # Get the strategy instance
             if self.context and hasattr(self.context, 'strategy_factory'):
@@ -783,3 +814,461 @@ class CompositeUniversalStrategy(CompositeStrategy):
             all_results.extend(base_results)
             
         return all_results
+
+# ===== Intent-Driven Strategy Selection Methods =====
+    
+    def select_strategy_by_intent(self, intent_analysis: Dict[str, Any], 
+                                 site_analysis: Dict[str, Any] = None) -> List[str]:
+        """
+        Select optimal strategies based on intent analysis and site characteristics.
+        
+        Args:
+            intent_analysis: Analysis of user intent and content type
+            site_analysis: Analysis of target site characteristics
+            
+        Returns:
+            Ordered list of strategy names to try (primary first)
+        """
+        content_type = intent_analysis.get('content_type', 'GENERAL')
+        temporal_context = intent_analysis.get('temporal_context', {})
+        is_temporal = temporal_context.get('is_temporal', False)
+        specificity = intent_analysis.get('specificity_level', 'moderate')
+        
+        self.logger.info(f"🧠 Selecting strategies for content type: {content_type}, temporal: {is_temporal}, specificity: {specificity}")
+        
+        # Content-type specific strategy selection
+        strategy_selection = []
+        
+        if content_type in ['NEWS_ARTICLES', 'PRODUCT_INFORMATION', 'JOB_LISTINGS', 'CONTACT_INFORMATION']:
+            # Use Universal Hunter for specialized content types
+            strategy_selection.append('universal_hunter')
+            self.logger.info(f"📰 Selected Universal Hunter for {content_type}")
+        
+        # Add site-specific strategies based on site analysis
+        if site_analysis:
+            site_type = site_analysis.get('site_type', 'unknown')
+            cms_platform = site_analysis.get('cms_platform', 'unknown')
+            
+            if site_type in ['e-commerce', 'marketplace']:
+                strategy_selection.extend(['universal_crawl4ai', 'dom_strategy'])
+                self.logger.info("🛍️ Added e-commerce optimized strategies")
+            elif site_type in ['news', 'blog', 'media']:
+                strategy_selection.extend(['universal_hunter', 'dom_strategy'])
+                self.logger.info("📰 Added news/media optimized strategies")
+            elif cms_platform in ['wordpress', 'drupal', 'joomla']:
+                strategy_selection.extend(['dom_strategy', 'universal_crawl4ai'])
+                self.logger.info(f"📝 Added CMS-optimized strategies for {cms_platform}")
+        
+        # Add universal strategies as fallbacks
+        fallback_strategies = ['universal_crawl4ai', 'dom_strategy', 'api_strategy']
+        for strategy in fallback_strategies:
+            if strategy not in strategy_selection:
+                strategy_selection.append(strategy)
+        
+        # Reorder based on performance history
+        strategy_selection = self._reorder_by_performance(strategy_selection, intent_analysis)
+        
+        self.logger.info(f"🎯 Final strategy selection: {strategy_selection[:3]}...")
+        return strategy_selection
+    
+    def map_domain_to_strategies(self, url: str, site_analysis: Dict[str, Any] = None) -> List[str]:
+        """
+        Map specific domains to optimal strategies based on known patterns.
+        
+        Args:
+            url: Target URL
+            site_analysis: Optional site analysis results
+            
+        Returns:
+            Ordered list of optimal strategies for this domain
+        """
+        from urllib.parse import urlparse
+        domain = urlparse(url).netloc.lower()
+        
+        # Domain-specific strategy mappings
+        domain_strategies = {
+            # E-commerce sites
+            'amazon.com': ['universal_hunter', 'dom_strategy'],
+            'ebay.com': ['universal_hunter', 'api_strategy', 'dom_strategy'],
+            'walmart.com': ['dom_strategy', 'universal_crawl4ai'],
+            'target.com': ['dom_strategy', 'universal_crawl4ai'],
+            'bestbuy.com': ['dom_strategy', 'universal_crawl4ai'],
+            
+            # News sites
+            'reuters.com': ['universal_hunter', 'dom_strategy'],
+            'bbc.com': ['universal_hunter', 'dom_strategy'],
+            'cnn.com': ['universal_hunter', 'dom_strategy'],
+            'techcrunch.com': ['universal_hunter', 'dom_strategy'],
+            'theverge.com': ['universal_hunter', 'dom_strategy'],
+            
+            # Job sites
+            'linkedin.com': ['universal_hunter', 'universal_crawl4ai'],
+            'indeed.com': ['universal_hunter', 'form_search_engine'],
+            'glassdoor.com': ['universal_hunter', 'dom_strategy'],
+            
+            # Social media / dynamic sites
+            'twitter.com': ['universal_crawl4ai', 'api_strategy'],
+            'facebook.com': ['universal_crawl4ai'],
+            'instagram.com': ['api_strategy', 'universal_crawl4ai'],
+            
+            # Generic platforms
+            'wordpress.': ['dom_strategy', 'universal_crawl4ai'],
+            'shopify.': ['dom_strategy', 'universal_hunter'],
+            'github.com': ['api_strategy', 'dom_strategy']
+        }
+        
+        # Check for exact domain matches
+        for domain_pattern, strategies in domain_strategies.items():
+            if domain_pattern in domain:
+                self.logger.info(f"🏷️ Found domain-specific strategies for {domain}: {strategies}")
+                return strategies
+        
+        # Use site analysis for generic strategy selection
+        if site_analysis:
+            return self._analyze_site_for_strategies(site_analysis)
+        
+        # Default strategy order
+        return ['universal_crawl4ai', 'dom_strategy', 'universal_hunter']
+    
+    def create_fallback_chain(self, primary_strategies: List[str], 
+                             intent_analysis: Dict[str, Any]) -> List[str]:
+        """
+        Create an intelligent fallback chain for when primary strategies fail.
+        
+        Args:
+            primary_strategies: List of primary strategies
+            intent_analysis: Intent analysis results
+            
+        Returns:
+            Complete strategy chain with intelligent fallbacks
+        """
+        content_type = intent_analysis.get('content_type', 'GENERAL')
+        
+        # All available strategies
+        all_strategies = [
+            'universal_hunter', 'universal_crawl4ai', 'dom_strategy',
+            'api_strategy', 'form_search_engine', 'url_param_strategy'
+        ]
+        
+        # Create fallback chain
+        fallback_chain = primary_strategies.copy()
+        
+        # Add content-type specific fallbacks
+        if content_type == 'NEWS_ARTICLES':
+            fallback_order = ['universal_hunter', 'dom_strategy', 'universal_crawl4ai']
+        elif content_type == 'PRODUCT_INFORMATION':
+            fallback_order = ['universal_hunter', 'dom_strategy', 'universal_crawl4ai', 'api_strategy']
+        elif content_type == 'JOB_LISTINGS':
+            fallback_order = ['universal_hunter', 'form_search_engine', 'dom_strategy']
+        elif content_type == 'CONTACT_INFORMATION':
+            fallback_order = ['universal_hunter', 'dom_strategy', 'universal_crawl4ai']
+        else:
+            fallback_order = ['universal_crawl4ai', 'dom_strategy', 'universal_hunter', 'api_strategy']
+        
+        # Add missing strategies from fallback order
+        for strategy in fallback_order:
+            if strategy not in fallback_chain and strategy in all_strategies:
+                fallback_chain.append(strategy)
+        
+        # Ensure we have at least 3 strategies in the chain
+        while len(fallback_chain) < 3:
+            for strategy in all_strategies:
+                if strategy not in fallback_chain:
+                    fallback_chain.append(strategy)
+                    break
+        
+        self.logger.info(f"🔗 Created fallback chain: {fallback_chain[:5]}...")
+        return fallback_chain
+    
+    def track_strategy_performance(self, strategy_name: str, success: bool, 
+                                  execution_time: float, quality_score: float = 0.0):
+        """
+        Track strategy performance for future optimization.
+        
+        Args:
+            strategy_name: Name of the strategy
+            success: Whether the strategy succeeded
+            execution_time: Time taken to execute
+            quality_score: Quality score of results (0.0-1.0)
+        """
+        if strategy_name not in self.strategy_performance:
+            self.strategy_performance[strategy_name] = {
+                'total_executions': 0,
+                'successes': 0,
+                'avg_execution_time': 0.0,
+                'avg_quality_score': 0.0,
+                'success_rate': 0.0
+            }
+        
+        perf = self.strategy_performance[strategy_name]
+        perf['total_executions'] += 1
+        
+        if success:
+            perf['successes'] += 1
+        
+        # Update averages
+        perf['success_rate'] = perf['successes'] / perf['total_executions']
+        perf['avg_execution_time'] = (
+            (perf['avg_execution_time'] * (perf['total_executions'] - 1) + execution_time) /
+            perf['total_executions']
+        )
+        perf['avg_quality_score'] = (
+            (perf['avg_quality_score'] * (perf['total_executions'] - 1) + quality_score) /
+            perf['total_executions']
+        )
+        
+        self.logger.debug(f"📊 Updated performance for {strategy_name}: "
+                         f"success_rate={perf['success_rate']:.2f}, "
+                         f"avg_time={perf['avg_execution_time']:.2f}s")
+    
+    def _reorder_by_performance(self, strategies: List[str], 
+                               intent_analysis: Dict[str, Any]) -> List[str]:
+        """Reorder strategies based on historical performance."""
+        content_type = intent_analysis.get('content_type', 'GENERAL')
+        
+        # Calculate performance scores for each strategy
+        strategy_scores = {}
+        for strategy in strategies:
+            if strategy in self.strategy_performance:
+                perf = self.strategy_performance[strategy]
+                # Weight success rate more heavily, but consider speed and quality
+                score = (
+                    perf['success_rate'] * 0.6 +
+                    (1.0 / max(1.0, perf['avg_execution_time'])) * 0.2 +
+                    perf['avg_quality_score'] * 0.2
+                )
+                strategy_scores[strategy] = score
+            else:
+                # Default score for strategies without history
+                strategy_scores[strategy] = 0.5
+        
+        # Sort strategies by performance score (descending)
+        reordered = sorted(strategies, key=lambda s: strategy_scores.get(s, 0.0), reverse=True)
+        
+        if reordered != strategies:
+            self.logger.info(f"📈 Reordered strategies based on performance: {reordered[:3]}...")
+        
+        return reordered
+    
+    def _analyze_site_for_strategies(self, site_analysis: Dict[str, Any]) -> List[str]:
+        """Analyze site characteristics to determine optimal strategies."""
+        strategies = []
+        
+        # Check for API availability
+        if site_analysis.get('has_api', False):
+            strategies.append('api_strategy')
+        
+        # Check for complex JavaScript
+        if site_analysis.get('uses_heavy_js', False):
+            strategies.append('universal_crawl4ai')
+        
+        # Check for forms
+        if site_analysis.get('has_search_forms', False):
+            strategies.append('form_search_engine')
+        
+        # Default strategies
+        if not strategies:
+            strategies = ['dom_strategy', 'universal_crawl4ai']
+        
+        return strategies
+    
+    # ===== Enhanced Strategy Execution with Intent-Driven Selection =====
+    
+    async def execute_with_intent_selection(self, url: str, user_prompt: str,
+                                          intent_analysis: Dict[str, Any] = None,
+                                          site_analysis: Dict[str, Any] = None,
+                                          **kwargs) -> Dict[str, Any]:
+        """
+        Execute extraction with intelligent strategy selection based on intent.
+        
+        Args:
+            url: Target URL
+            user_prompt: User's query/prompt
+            intent_analysis: Analysis of user intent
+            site_analysis: Analysis of target site
+            **kwargs: Additional parameters
+            
+        Returns:
+            Extraction results with metadata about strategy selection
+        """
+        start_time = time.time()
+        
+        # Determine optimal strategy selection
+        if intent_analysis:
+            selected_strategies = self.select_strategy_by_intent(intent_analysis, site_analysis)
+        else:
+            selected_strategies = self.map_domain_to_strategies(url, site_analysis)
+        
+        # Create fallback chain
+        if intent_analysis:
+            strategy_chain = self.create_fallback_chain(selected_strategies, intent_analysis)
+        else:
+            strategy_chain = selected_strategies
+        
+        self.logger.info(f"🎯 Executing with strategy chain: {strategy_chain[:3]}...")
+        
+        # Execute strategies in order until one succeeds
+        last_error = None
+        strategy_attempts = []
+        
+        for i, strategy_name in enumerate(strategy_chain[:5]):  # Limit to 5 attempts
+            strategy_start_time = time.time()
+            
+            try:
+                self.logger.info(f"🔄 Attempting strategy {i+1}/{min(5, len(strategy_chain))}: {strategy_name}")
+                
+                # Execute the strategy
+                if strategy_name == 'universal_hunter':
+                    result = await self._execute_universal_hunter(url, user_prompt, intent_analysis, **kwargs)
+                else:
+                    result = await self._execute_traditional_strategy(strategy_name, url, user_prompt, **kwargs)
+                
+                strategy_execution_time = time.time() - strategy_start_time
+                
+                if result and result.get('success', False) and result.get('items'):
+                    # Success! Track performance and return result
+                    quality_score = self._calculate_result_quality_score(result, intent_analysis)
+                    self.track_strategy_performance(strategy_name, True, strategy_execution_time, quality_score)
+                    
+                    strategy_attempts.append({
+                        'strategy': strategy_name,
+                        'success': True,
+                        'execution_time': strategy_execution_time,
+                        'quality_score': quality_score
+                    })
+                    
+                    result['metadata'] = result.get('metadata', {})
+                    result['metadata'].update({
+                        'successful_strategy': strategy_name,
+                        'strategy_attempts': strategy_attempts,
+                        'total_execution_time': time.time() - start_time,
+                        'strategy_selection_reason': 'intent_driven'
+                    })
+                    
+                    self.logger.info(f"✅ Strategy {strategy_name} succeeded with {len(result.get('items', []))} results")
+                    return result
+                else:
+                    # Strategy failed or returned no results
+                    self.track_strategy_performance(strategy_name, False, strategy_execution_time, 0.0)
+                    strategy_attempts.append({
+                        'strategy': strategy_name,
+                        'success': False,
+                        'execution_time': strategy_execution_time,
+                        'error': 'No results returned'
+                    })
+                    self.logger.warning(f"❌ Strategy {strategy_name} failed or returned no results")
+                    
+            except Exception as e:
+                strategy_execution_time = time.time() - strategy_start_time
+                self.track_strategy_performance(strategy_name, False, strategy_execution_time, 0.0)
+                
+                strategy_attempts.append({
+                    'strategy': strategy_name,
+                    'success': False,
+                    'execution_time': strategy_execution_time,
+                    'error': str(e)
+                })
+                
+                last_error = e
+                self.logger.error(f"❌ Strategy {strategy_name} failed with error: {e}")
+                continue
+        
+        # All strategies failed
+        self.logger.error(f"💥 All {len(strategy_attempts)} strategies failed")
+        return {
+            'success': False,
+            'error': f'All strategies failed. Last error: {last_error}',
+            'items': [],
+            'metadata': {
+                'strategy_attempts': strategy_attempts,
+                'total_execution_time': time.time() - start_time,
+                'strategy_selection_reason': 'intent_driven'
+            }
+        }
+    
+    async def _execute_universal_hunter(self, url: str, user_prompt: str,
+                                       intent_analysis: Dict[str, Any] = None,
+                                       **kwargs) -> Dict[str, Any]:
+        """Execute the Universal Hunter strategy."""
+        try:
+            # Use Universal Hunter for intelligent content hunting
+            targets = await self.universal_hunter.hunt_intelligently(
+                query=user_prompt,
+                urls=[url],
+                max_targets=kwargs.get('max_results', 5),
+                direct_urls=True
+            )
+            
+            if targets:
+                # Convert targets to standard format
+                items = []
+                for target in targets:
+                    item = {
+                        'title': target.title,
+                        'url': target.url,
+                        'content': target.content,
+                        'relevance_score': target.relevance_score,
+                        'quality_score': target.quality_score,
+                        'content_type': target.content_type,
+                        'preview': target.preview
+                    }
+                    items.append(item)
+                
+                return {
+                    'success': True,
+                    'items': items,
+                    'extraction_type': 'universal_hunter',
+                    'metadata': {
+                        'total_targets': len(targets),
+                        'pages_analyzed': self.universal_hunter.pages_analyzed,
+                        'navigation_hops': self.universal_hunter.navigation_hops
+                    }
+                }
+            else:
+                return {'success': False, 'error': 'No targets found', 'items': []}
+                
+        except Exception as e:
+            self.logger.error(f"Universal Hunter execution failed: {e}")
+            return {'success': False, 'error': str(e), 'items': []}
+    
+    async def _execute_traditional_strategy(self, strategy_name: str, url: str,
+                                          user_prompt: str, **kwargs) -> Dict[str, Any]:
+        """Execute a traditional strategy (fallback to parent implementation)."""
+        # This would call the parent class's strategy execution
+        # For now, return a placeholder
+        return {
+            'success': False,
+            'error': f'Strategy {strategy_name} not yet integrated',
+            'items': []
+        }
+    
+    def _calculate_result_quality_score(self, result: Dict[str, Any],
+                                       intent_analysis: Dict[str, Any] = None) -> float:
+        """Calculate quality score for extraction results."""
+        if not result.get('items'):
+            return 0.0
+        
+        items = result['items']
+        scores = []
+        
+        for item in items:
+            item_score = 0.0
+            
+            # Content completeness
+            if item.get('title'):
+                item_score += 0.3
+            if item.get('content'):
+                item_score += 0.4
+            if item.get('url'):
+                item_score += 0.1
+            
+            # Use individual quality scores if available
+            if 'quality_score' in item:
+                item_score = max(item_score, item['quality_score'])
+            if 'relevance_score' in item:
+                item_score = (item_score + item['relevance_score']) / 2
+            
+            scores.append(item_score)
+        
+        # Return average quality score
+        return sum(scores) / len(scores) if scores else 0.0

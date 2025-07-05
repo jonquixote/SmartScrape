@@ -607,60 +607,123 @@ class AdaptiveScraper:
         logger.info(f"Using UniversalHunter for intelligent hunting: '{user_query[:100]}'")
         
         try:
-            # Import and initialize UniversalHunter
+            # Use UniversalHunter for intelligent hunting (now fixed!)
             from intelligence.universal_hunter import UniversalHunter
             import aiohttp
             
-            # Initialize UniversalHunter if not already done
-            if not hasattr(self, 'hunter') or self.hunter is None:
-                # Create an HTTP session for UniversalHunter
-                self.hunter_session = aiohttp.ClientSession()
-                self.hunter = UniversalHunter(session=self.hunter_session)  # Provide HTTP session
-            
-            # First get URLs to hunt from
-            # Check if a start_url is provided in options, otherwise use search discovery
-            start_url = options.get('start_url') if options else None
-            if start_url:
-                # Use the provided start_url directly
-                urls = [start_url]
-                logger.info(f"Using provided start_url for hunting: {start_url}")
-            else:
-                # Fall back to search-based URL discovery
-                urls = await self._discover_hunting_urls(user_query, options)
-                logger.info(f"Using search-discovered URLs for hunting: {len(urls)} URLs")
-            
-            # Use UniversalHunter to process the query
-            # For start_url, use direct_urls=True for more lenient extraction
-            is_direct_url = start_url is not None
-            hunting_targets = await self.hunter.hunt(
-                query=user_query,
-                urls=urls,
-                max_targets=options.get('max_targets', 5),
-                direct_urls=is_direct_url
-            )
-            
-            processing_time = time.time() - start_time
-            
-            # Convert hunting targets to the expected format
-            extracted_content = self._format_hunting_results(hunting_targets, user_query)
-            
-            # Format the result for consistency with other scrapers
-            return {
-                "success": True,
-                "data": extracted_content,
-                "metadata": {
-                    "query": user_query,
-                    "session_id": session_id,
-                    "scraper_type": "UniversalHunter",
-                    "intelligent_hunting": True,
-                    "urls_processed": len(urls),
-                    "total_items": len(extracted_content),
-                    "processing_time": processing_time,
-                    "targets_found": len(hunting_targets),
-                    "extraction_strategy": "intelligent_hunting"
-                },
-                "sources": [target.url for target in hunting_targets if hasattr(target, 'url')]
-            }
+            # Create an aiohttp session for UniversalHunter
+            timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession(timeout=timeout) as http_session:
+                # Create UniversalHunter with the aiohttp session
+                hunter = UniversalHunter(session=http_session)
+                
+                # Get URLs using the enhanced DuckDuckGo generator with fallback
+                start_url = options.get('start_url') if options else None
+                if start_url:
+                    urls = [start_url]
+                    logger.info(f"Using provided start_url: {start_url}")
+                else:
+                    urls = await self._discover_hunting_urls(user_query, options)
+                    logger.info(f"Discovered {len(urls)} URLs with enhanced fallback system")
+                
+                # Determine result count configuration
+                min_results = options.get('min_results', 10) if options else 10
+                max_results = options.get('max_results', 50) if options else 50
+                target_results = options.get('target_results', min_results) if options else min_results
+                
+                # Use configuration defaults if not specified
+                if not options or ('min_results' not in options and 'max_results' not in options and 'target_results' not in options):
+                    from config import DEFAULT_MIN_RESULTS, DEFAULT_MAX_RESULTS, DEFAULT_TARGET_RESULTS
+                    min_results = DEFAULT_MIN_RESULTS
+                    max_results = DEFAULT_MAX_RESULTS
+                    target_results = DEFAULT_TARGET_RESULTS
+                
+                logger.info(f"Result configuration - Min: {min_results}, Target: {target_results}, Max: {max_results}")
+                
+                # Select the best URLs for hunting (not just the first ones)
+                hunting_url_count = min(len(urls), 15)  # Process up to 15 URLs for better results
+                hunting_urls = urls[:hunting_url_count]
+                
+                logger.info(f"🎯 Using top {len(hunting_urls)} URLs for hunting")
+                for i, url in enumerate(hunting_urls[:5], 1):  # Log first 5 URLs
+                    logger.info(f"   🔍 Hunt URL {i}: {url}")
+                
+                # Use UniversalHunter to process the discovered URLs with specified result count
+                hunting_targets = await hunter.hunt(user_query, hunting_urls, target_results)
+                
+                logger.info(f"🎯 UniversalHunter returned {len(hunting_targets)} targets")
+                
+                # Convert hunting targets to results format
+                all_results = []
+                for i, target in enumerate(hunting_targets):
+                    logger.info(f"   Target {i+1}: {target.title[:50]}... (Score: {target.quality_score:.2f})")
+                    result = {
+                        'title': target.title,
+                        'content': target.content_preview,
+                        'url': target.url,
+                        'relevance_score': target.relevance_score,
+                        'quality_score': target.quality_score,
+                        'content_type': target.content_type,
+                        'extraction_method': target.extraction_method,
+                        'metadata': target.metadata
+                    }
+                    all_results.append(result)
+                
+                logger.info(f"💫 Converted {len(all_results)} targets to results")
+                
+                # Ensure we have at least the minimum number of results
+                if len(all_results) < min_results:
+                    logger.info(f"Only {len(all_results)} results found, need {min_results}. Attempting to get more...")
+                    # Try to get more results with more aggressive hunting
+                    if len(urls) > 10:
+                        additional_targets = await hunter.hunt(user_query, urls[10:20], min_results - len(all_results), direct_urls=True)
+                        for target in additional_targets:
+                            if len(all_results) >= min_results:
+                                break
+                            result = {
+                                'title': target.title,
+                                'content': target.content_preview,
+                                'url': target.url,
+                                'relevance_score': target.relevance_score,
+                                'quality_score': target.quality_score,
+                                'content_type': target.content_type,
+                                'extraction_method': target.extraction_method,
+                                'metadata': target.metadata
+                            }
+                            all_results.append(result)
+                
+                # Limit to max_results if exceeded
+                if len(all_results) > max_results:
+                    all_results = all_results[:max_results]
+                    logger.info(f"Limited results to {max_results} as requested")
+                
+                processing_time = time.time() - start_time
+                
+                # Format the result
+                logger.info(f"🚀 Final result: success=True, {len(all_results)} results")
+                return {
+                    "success": True,
+                    "results": all_results,  # Use 'results' key for consistency 
+                    "data": all_results,
+                    "metadata": {
+                        "query": user_query,
+                        "session_id": session_id,
+                        "scraper_type": "UniversalHunter",
+                        "intelligent_hunting": True,
+                        "urls_processed": len(urls),
+                        "total_items": len(all_results),
+                        "processing_time": processing_time,
+                        "targets_found": len(hunting_targets),
+                        "extraction_strategy": "intelligent_universal_hunting",
+                        "result_configuration": {
+                            "min_results": min_results,
+                            "max_results": max_results,
+                            "target_results": target_results,
+                            "achieved_results": len(all_results)
+                        }
+                    },
+                    "sources": urls[:len(all_results)]
+                }
                 
         except ImportError as e:
             logger.warning(f"UniversalHunter not available: {e}")
@@ -671,25 +734,181 @@ class AdaptiveScraper:
 
     async def _discover_hunting_urls(self, query: str, options: Optional[Dict[str, Any]] = None) -> List[str]:
         """
-        Discover URLs for hunting using search engines (similar to SimpleScraper approach)
+        Discover URLs for hunting using aggressive multi-source search strategy
         """
+        try:
+            # First, try the aggressive multi-source discovery
+            from components.aggressive_url_discovery import AggressiveURLDiscovery
+            
+            discovery_engine = AggressiveURLDiscovery()
+            
+            # Determine query type for better targeting
+            query_type = self._detect_query_type(query)
+            
+            # Get target URL count based on result requirements
+            min_results = options.get('min_results', 10) if options else 10
+            target_url_count = max(min_results * 3, 50)  # Get 3x more URLs than needed results
+            
+            logger.info(f"🚀 Aggressive URL discovery: targeting {target_url_count} URLs for query type '{query_type}'")
+            
+            # Discover URLs aggressively
+            discovered_urls = await discovery_engine.discover_urls(
+                query=query,
+                max_urls=target_url_count,
+                query_type=query_type
+            )
+            
+            # Convert to simple URL list
+            urls = [url_obj.url for url_obj in discovered_urls]
+            
+            if len(urls) >= 20:
+                logger.info(f"✅ Aggressive discovery successful: {len(urls)} URLs")
+                return urls
+            else:
+                logger.warning(f"⚠️ Aggressive discovery yielded only {len(urls)} URLs, falling back...")
+                
+        except Exception as e:
+            logger.warning(f"Aggressive URL discovery failed: {e}")
+            logger.info("Falling back to enhanced DuckDuckGo system...")
+        
+        # Fallback to enhanced DuckDuckGo system
         try:
             # Import DuckDuckGo URL generator
             from components.duckduckgo_url_generator import DuckDuckGoURLGenerator
             
             url_generator = DuckDuckGoURLGenerator()
-            search_results = url_generator.generate_urls(query, max_urls=10)
             
-            # Extract URLs from URLScore objects
-            search_urls = [result.url for result in search_results]
+            # Determine how many URLs we need
+            min_results = options.get('min_results', 10) if options else 10
+            url_count = max(min_results * 2, 30)  # Get 2x more URLs than needed results
             
-            logger.info(f"Discovered {len(search_urls)} URLs for hunting: {query}")
-            return search_urls
+            logger.info(f"🔍 Enhanced DuckDuckGo discovery: targeting {url_count} URLs")
             
+            # Generate URLs with enhanced approach
+            url_scores = url_generator.generate_urls_enhanced(query, max_urls=url_count)
+            
+            # Extract URLs from scores
+            urls = [score.url for score in url_scores if score.url]
+            
+            if len(urls) >= 10:
+                logger.info(f"✅ Enhanced DuckDuckGo successful: {len(urls)} URLs")
+                return urls
+            else:
+                logger.warning(f"⚠️ Enhanced DuckDuckGo yielded only {len(urls)} URLs, trying emergency fallback...")
+                
         except Exception as e:
-            logger.warning(f"Error discovering hunting URLs: {e}. Using fallback.")
-            # Fallback to basic search URL
-            return [f"https://duckduckgo.com/?q={query.replace(' ', '+')}"]
+            logger.warning(f"Enhanced DuckDuckGo discovery failed: {e}")
+        
+        # Emergency fallback - create search URLs directly
+        emergency_urls = self._create_emergency_search_urls(query)
+        logger.info(f"🆘 Emergency fallback: {len(emergency_urls)} URLs")
+        
+        return emergency_urls
+
+    def _create_emergency_search_urls(self, query: str) -> List[str]:
+        """
+        Create emergency direct content URLs as last resort fallback
+        NEVER return search engine result pages - only direct content URLs
+        """
+        # Detect query type for better targeting
+        query_type = self._detect_query_type(query)
+        
+        # Direct content URLs - NO SEARCH ENGINE RESULT PAGES
+        if query_type == 'tech':
+            emergency_urls = [
+                'https://techcrunch.com/',
+                'https://www.theverge.com/',
+                'https://arstechnica.com/',
+                'https://www.wired.com/',
+                'https://venturebeat.com/',
+                'https://www.engadget.com/',
+                'https://mashable.com/tech',
+                'https://www.cnet.com/news/',
+                'https://www.technologyreview.com/',
+                'https://spectrum.ieee.org/'
+            ]
+        elif query_type == 'finance':
+            emergency_urls = [
+                'https://finance.yahoo.com/news/',
+                'https://www.marketwatch.com/latest-news',
+                'https://www.cnbc.com/business/',
+                'https://fortune.com/section/finance/',
+                'https://www.businessinsider.com/',
+                'https://seekingalpha.com/news',
+                'https://www.fool.com/investing/',
+                'https://www.wsj.com/news/business',
+                'https://www.reuters.com/business/',
+                'https://www.bloomberg.com/news/'
+            ]
+        elif query_type == 'science':
+            emergency_urls = [
+                'https://www.nature.com/news',
+                'https://www.sciencedaily.com/news/',
+                'https://www.newscientist.com/',
+                'https://www.scientificamerican.com/',
+                'https://phys.org/news/',
+                'https://www.space.com/news',
+                'https://www.livescience.com/',
+                'https://www.popsci.com/',
+                'https://www.sciencenews.org/',
+                'https://www.eurekalert.org/'
+            ]
+        else:  # news or general
+            emergency_urls = [
+                'https://www.reuters.com/world/',
+                'https://www.bbc.com/news',
+                'https://www.npr.org/sections/news/',
+                'https://www.theguardian.com/international',
+                'https://www.nytimes.com/',
+                'https://www.washingtonpost.com/',
+                'https://www.cnn.com/',
+                'https://abcnews.go.com/',
+                'https://www.cbsnews.com/news/',
+                'https://www.nbcnews.com/'
+            ]
+        
+        return emergency_urls
+
+    def _detect_query_type(self, query: str) -> str:
+        """
+        Detect the type of query for better URL discovery targeting
+        
+        Args:
+            query: The search query
+            
+        Returns:
+            Query type string ('news', 'tech', 'finance', 'academic', 'general')
+        """
+        query_lower = query.lower()
+        
+        # News-related keywords
+        news_keywords = ['news', 'latest', 'recent', 'breaking', 'update', 'today', 'yesterday', 
+                        'this week', 'announcement', 'report', 'press release']
+        
+        # Tech-related keywords  
+        tech_keywords = ['ai', 'artificial intelligence', 'machine learning', 'tech', 'technology',
+                        'software', 'programming', 'code', 'development', 'algorithm', 'data',
+                        'computer', 'digital', 'cyber', 'blockchain', 'crypto']
+                        
+        # Finance-related keywords
+        finance_keywords = ['stock', 'market', 'finance', 'investment', 'trading', 'price',
+                           'economy', 'economic', 'financial', 'earnings', 'revenue', 'profit']
+                           
+        # Academic/research keywords
+        academic_keywords = ['research', 'study', 'paper', 'journal', 'academic', 'university',
+                            'scholar', 'analysis', 'breakthrough', 'discovery', 'findings']
+        
+        # Count keyword matches
+        if any(keyword in query_lower for keyword in news_keywords):
+            return 'news'
+        elif any(keyword in query_lower for keyword in tech_keywords):
+            return 'tech'
+        elif any(keyword in query_lower for keyword in finance_keywords):
+            return 'finance' 
+        elif any(keyword in query_lower for keyword in academic_keywords):
+            return 'academic'
+        else:
+            return 'general'
 
     def _format_hunting_results(self, hunting_targets: List, query: str) -> List[Dict[str, Any]]:
         """

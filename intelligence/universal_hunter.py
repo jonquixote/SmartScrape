@@ -1,27 +1,37 @@
 """
-Universal Intelligent Hunter System
+Universal Intelligent Hunter System - Refactored Open-Source Architecture
 
-This module implements a site-agnostic, intelligent hunting system that:
-1. Understands user query intent (what are they looking for?)
-2. Classifies page types (index/listing vs content/article)
-3. Navigates adaptively to find actual content
-4. Extracts targeted, high-quality content matching user intent
-5. Validates and scores results for relevance and quality
+This module implements a universal, AI-powered content extraction engine using
+a combination of open-source tools to ensure reliability without paid services.
 
-This replaces basic scraping with intelligent, targeted hunting.
+The architecture is as follows:
+1.  **Intent Analysis:** Understands the user's query and defines a structured output format (JSON schema).
+2.  **URL Discovery:** Uses DuckDuckGo to find relevant URLs.
+3.  **Multi-Stage Extraction Pipeline:**
+    - Fetches content using httpx and Playwright for JavaScript rendering.
+    - Cleans the HTML and extracts the main content using Trafilatura/Readability/Justext.
+    - Performs Heuristic/Rule-Based Structured Extraction (BeautifulSoup/LXML).
+    - Conditionally uses LLM-Guided Refinement/Extraction as a fallback.
 """
 
 import logging
 import asyncio
+import json
 import re
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass
-from urllib.parse import urljoin, urlparse
-import hashlib
+import time
+from typing import Dict, List, Any, Optional, Union
+from dataclasses import dataclass, field
 
-from bs4 import BeautifulSoup
-import spacy
-from spacy.tokens import Doc
+from duckduckgo_search import DDGS
+from trafilatura import fetch_url, extract
+from playwright.async_api import async_playwright
+import httpx
+from bs4 import BeautifulSoup # For heuristic extraction
+from jsonschema import validate, ValidationError, Draft7Validator
+
+# Assume crawl4ai is installed and configured
+from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, LLMConfig
+from crawl4ai.extraction_strategy import LLMExtractionStrategy
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -29,897 +39,1083 @@ logger = logging.getLogger("UniversalHunter")
 
 @dataclass
 class HuntingIntent:
-    """Structured representation of what the user is hunting for"""
-    target_type: str  # news, products, services, people, events, etc.
-    content_category: str  # tech, automotive, finance, etc.
-    temporal_preference: str  # latest, recent, historical, etc.
-    specificity: str  # specific, general, comparative
-    entities: List[str]  # key entities mentioned
-    keywords: List[str]  # important keywords
-    confidence: float  # confidence in intent analysis
+    """Structured representation of what the user is hunting for, including the desired output format."""
+    query: str
+    output_schema: Dict[str, Any]
+    target_type: str = "information"
+    content_category: str = "general"
+    entities: List[str] = field(default_factory=list)
+    keywords: List[str] = field(default_factory=list)
 
 @dataclass
-class PageClassification:
-    """Classification of a page's purpose and structure"""
-    page_type: str  # index, article, product, profile, search_results, etc.
-    navigation_depth: int  # how deep in site hierarchy
-    content_richness: float  # 0-1 score of content density
-    link_density: float  # 0-1 score of outbound link density  
-    has_listings: bool  # contains list of items/articles
-    main_content_selector: str  # CSS selector for main content
-    article_link_selectors: List[str]  # selectors for finding article links
-    confidence: float  # confidence in classification
-
-@dataclass
-class HuntingTarget:
-    """A specific target found during hunting"""
+class HuntingResult:
+    """A structured result from a hunting operation."""
     url: str
-    title: str
-    content_preview: str
+    data: Dict[str, Any]
     relevance_score: float
-    quality_score: float
-    content_type: str
-    extraction_method: str
-    metadata: Dict[str, Any]
-
-class UniversalIntentAnalyzer:
-    """Analyzes user queries to understand hunting intent"""
-    
-    def __init__(self, nlp_model=None):
-        self.nlp = nlp_model
-        if not self.nlp:
-            try:
-                self.nlp = spacy.load("en_core_web_lg")
-            except OSError:
-                try:
-                    self.nlp = spacy.load("en_core_web_md")
-                except OSError:
-                    self.nlp = spacy.load("en_core_web_sm")
-                    logger.warning("Using small spaCy model - intent analysis may be limited")
-    
-    def analyze_intent(self, query: str) -> HuntingIntent:
-        """Analyze query to extract structured hunting intent"""
-        doc = self.nlp(query.lower())
-        
-        # Extract entities
-        entities = [ent.text for ent in doc.ents]
-        
-        # Extract keywords (important nouns and adjectives)
-        keywords = [token.lemma_ for token in doc 
-                   if token.pos_ in ['NOUN', 'ADJ', 'PROPN'] and not token.is_stop]
-        
-        # Determine target type based on query patterns
-        target_type = self._classify_target_type(query, doc, entities)
-        
-        # Determine content category
-        content_category = self._classify_content_category(query, entities, keywords)
-        
-        # Determine temporal preference
-        temporal_preference = self._extract_temporal_preference(query, doc)
-        
-        # Determine specificity
-        specificity = self._assess_specificity(query, entities, keywords)
-        
-        # Calculate confidence
-        confidence = self._calculate_intent_confidence(doc, entities, keywords)
-        
-        return HuntingIntent(
-            target_type=target_type,
-            content_category=content_category,
-            temporal_preference=temporal_preference,
-            specificity=specificity,
-            entities=entities,
-            keywords=keywords,
-            confidence=confidence
-        )
-    
-    def _classify_target_type(self, query: str, doc: Doc, entities: List[str]) -> str:
-        """Classify what type of content the user is hunting for"""
-        query_lower = query.lower()
-        
-        # News/articles indicators
-        news_indicators = ['news', 'article', 'story', 'report', 'update', 'latest', 'breaking']
-        if any(indicator in query_lower for indicator in news_indicators):
-            return 'news'
-        
-        # Product indicators
-        product_indicators = ['buy', 'purchase', 'price', 'cost', 'sale', 'deal', 'review', 'specs']
-        if any(indicator in query_lower for indicator in product_indicators):
-            return 'product'
-        
-        # Service indicators
-        service_indicators = ['service', 'provider', 'company', 'business', 'hire', 'contact']
-        if any(indicator in query_lower for indicator in service_indicators):
-            return 'service'
-        
-        # Event indicators
-        event_indicators = ['event', 'conference', 'meeting', 'schedule', 'calendar', 'when']
-        if any(indicator in query_lower for indicator in event_indicators):
-            return 'event'
-        
-        # Person/profile indicators
-        person_indicators = ['who is', 'profile', 'biography', 'about', 'background']
-        if any(indicator in query_lower for indicator in person_indicators):
-            return 'person'
-        
-        # Research/information indicators
-        research_indicators = ['how to', 'tutorial', 'guide', 'learn', 'information', 'explain']
-        if any(indicator in query_lower for indicator in research_indicators):
-            return 'information'
-        
-        # Default to news if temporal words present, otherwise information
-        temporal_words = ['latest', 'recent', 'new', 'current', 'today', 'yesterday']
-        if any(word in query_lower for word in temporal_words):
-            return 'news'
-        
-        return 'information'
-    
-    def _classify_content_category(self, query: str, entities: List[str], keywords: List[str]) -> str:
-        """Classify the content category/domain"""
-        query_lower = query.lower()
-        all_terms = query_lower + ' ' + ' '.join(entities) + ' ' + ' '.join(keywords)
-        
-        # Technology
-        tech_terms = ['tesla', 'apple', 'google', 'microsoft', 'ai', 'tech', 'software', 'app', 'internet']
-        if any(term in all_terms for term in tech_terms):
-            return 'technology'
-        
-        # Automotive
-        auto_terms = ['car', 'vehicle', 'automotive', 'tesla', 'bmw', 'mercedes', 'toyota', 'model']
-        if any(term in all_terms for term in auto_terms):
-            return 'automotive'
-        
-        # Finance
-        finance_terms = ['stock', 'market', 'finance', 'investment', 'money', 'bank', 'economy']
-        if any(term in all_terms for term in finance_terms):
-            return 'finance'
-        
-        # Health
-        health_terms = ['health', 'medical', 'doctor', 'medicine', 'treatment', 'disease', 'wellness']
-        if any(term in all_terms for term in health_terms):
-            return 'health'
-        
-        # Sports
-        sports_terms = ['sport', 'game', 'team', 'player', 'match', 'score', 'championship']
-        if any(term in all_terms for term in sports_terms):
-            return 'sports'
-        
-        return 'general'
-    
-    def _extract_temporal_preference(self, query: str, doc: Doc) -> str:
-        """Extract temporal preference from query"""
-        query_lower = query.lower()
-        
-        # Latest/breaking
-        if any(word in query_lower for word in ['latest', 'breaking', 'recent', 'new', 'current']):
-            return 'latest'
-        
-        # Today/yesterday
-        if any(word in query_lower for word in ['today', 'yesterday', 'this week']):
-            return 'recent'
-        
-        # Historical
-        if any(word in query_lower for word in ['history', 'past', 'historical', 'old', 'archive']):
-            return 'historical'
-        
-        return 'any'
-    
-    def _assess_specificity(self, query: str, entities: List[str], keywords: List[str]) -> str:
-        """Assess how specific vs general the query is"""
-        # Count specific indicators
-        specificity_score = 0
-        
-        # Named entities increase specificity
-        specificity_score += len(entities) * 2
-        
-        # Specific keywords
-        specificity_score += len([k for k in keywords if len(k) > 4])
-        
-        # Specific phrases
-        specific_phrases = ['model 3', 'iphone 15', 'version 2.0', 'series x']
-        if any(phrase in query.lower() for phrase in specific_phrases):
-            specificity_score += 3
-        
-        if specificity_score >= 5:
-            return 'specific'
-        elif specificity_score >= 2:
-            return 'moderate'
-        else:
-            return 'general'
-    
-    def _calculate_intent_confidence(self, doc: Doc, entities: List[str], keywords: List[str]) -> float:
-        """Calculate confidence in intent analysis"""
-        confidence = 0.5  # Base confidence
-        
-        # More entities = higher confidence
-        confidence += min(0.3, len(entities) * 0.1)
-        
-        # More meaningful keywords = higher confidence
-        confidence += min(0.2, len(keywords) * 0.02)
-        
-        # Clear sentence structure = higher confidence
-        if len(doc) > 3 and any(token.dep_ == 'ROOT' for token in doc):
-            confidence += 0.1
-        
-        return min(1.0, confidence)
-
-class UniversalPageClassifier:
-    """Classifies pages to understand their structure and purpose"""
-    
-    def __init__(self, nlp_model=None):
-        self.nlp = nlp_model
-    
-    def classify_page(self, html: str, url: str) -> PageClassification:
-        """Classify a page's type and structure"""
-        soup = BeautifulSoup(html, 'html.parser')
-        
-        # Remove script and style elements
-        for element in soup(['script', 'style', 'nav', 'footer', 'header']):
-            element.decompose()
-        
-        # Basic metrics
-        text_content = soup.get_text()
-        links = soup.find_all('a', href=True)
-        
-        # Calculate metrics
-        content_length = len(text_content.strip())
-        link_count = len(links)
-        link_density = link_count / max(content_length / 100, 1)
-        
-        # Determine page type
-        page_type = self._determine_page_type(soup, url, text_content, links)
-        
-        # Calculate navigation depth
-        navigation_depth = self._calculate_navigation_depth(url)
-        
-        # Calculate content richness
-        content_richness = self._calculate_content_richness(soup, text_content)
-        
-        # Check for listings
-        has_listings = self._detect_listings(soup)
-        
-        # Find main content selector
-        main_content_selector = self._find_main_content_selector(soup)
-        
-        # Find article link selectors
-        article_link_selectors = self._find_article_link_selectors(soup, page_type)
-        
-        # Calculate confidence
-        confidence = self._calculate_classification_confidence(
-            page_type, content_richness, has_listings, len(article_link_selectors)
-        )
-        
-        return PageClassification(
-            page_type=page_type,
-            navigation_depth=navigation_depth,
-            content_richness=content_richness,
-            link_density=link_density,
-            has_listings=has_listings,
-            main_content_selector=main_content_selector,
-            article_link_selectors=article_link_selectors,
-            confidence=confidence
-        )
-    
-    def _determine_page_type(self, soup: BeautifulSoup, url: str, text_content: str, links: List) -> str:
-        """Determine the primary type of the page"""
-        url_lower = url.lower()
-        text_lower = text_content.lower()
-        
-        # Check URL patterns first
-        if any(pattern in url_lower for pattern in ['/category/', '/tag/', '/archive/', '/list']):
-            return 'index'
-        
-        if any(pattern in url_lower for pattern in ['/article/', '/post/', '/news/', '/story/']):
-            return 'article'
-        
-        if any(pattern in url_lower for pattern in ['/product/', '/item/', '/p/']):
-            return 'product'
-        
-        # Check content patterns
-        # High link density suggests index page
-        if len(links) > 20 and len(text_content) < 5000:
-            return 'index'
-        
-        # Look for article indicators
-        article_indicators = soup.find_all(['article', 'main', '.post', '.article-content'])
-        if article_indicators and len(text_content) > 1000:
-            return 'article'
-        
-        # Look for product indicators
-        product_indicators = soup.find_all(attrs={'class': re.compile(r'price|buy|cart|product')})
-        if product_indicators:
-            return 'product'
-        
-        # Look for profile indicators
-        if any(indicator in text_lower for indicator in ['biography', 'about me', 'profile', 'background']):
-            return 'profile'
-        
-        # Look for search results
-        if any(indicator in text_lower for indicator in ['search results', 'results for', 'found']):
-            return 'search_results'
-        
-        # Default classification based on content length and structure
-        if len(text_content) > 2000 and len(links) < 10:
-            return 'article'
-        elif len(links) > 10:
-            return 'index'
-        else:
-            return 'general'
-    
-    def _calculate_navigation_depth(self, url: str) -> int:
-        """Calculate how deep in the site hierarchy this page is"""
-        path = urlparse(url).path
-        return len([p for p in path.split('/') if p])
-    
-    def _calculate_content_richness(self, soup: BeautifulSoup, text_content: str) -> float:
-        """Calculate how content-rich the page is (0-1)"""
-        # Base score from text length
-        text_score = min(1.0, len(text_content) / 5000)
-        
-        # Bonus for structured content
-        structure_bonus = 0
-        if soup.find_all(['h1', 'h2', 'h3']):
-            structure_bonus += 0.1
-        if soup.find_all(['p']) and len(soup.find_all(['p'])) > 3:
-            structure_bonus += 0.1
-        if soup.find_all(['img']):
-            structure_bonus += 0.05
-        
-        return min(1.0, text_score + structure_bonus)
-    
-    def _detect_listings(self, soup: BeautifulSoup) -> bool:
-        """Detect if page contains listings/repeated content"""
-        # Look for repeated structures
-        potential_containers = soup.find_all(['div', 'article', 'section', 'li'])
-        
-        # Group by similar class names
-        class_groups = {}
-        for element in potential_containers:
-            classes = element.get('class', [])
-            if classes:
-                class_key = ' '.join(sorted(classes))
-                class_groups[class_key] = class_groups.get(class_key, 0) + 1
-        
-        # If we have multiple elements with same classes, likely a listing
-        for count in class_groups.values():
-            if count >= 3:
-                return True
-        
-        # Look for semantic listing indicators
-        listing_selectors = [
-            '.post', '.article', '.item', '.product', '.entry',
-            '[class*="post"]', '[class*="article"]', '[class*="item"]'
-        ]
-        
-        for selector in listing_selectors:
-            elements = soup.select(selector)
-            if len(elements) >= 3:
-                return True
-        
-        return False
-    
-    def _find_main_content_selector(self, soup: BeautifulSoup) -> str:
-        """Find the CSS selector for the main content area"""
-        # Try semantic selectors first
-        semantic_selectors = ['main', 'article', '[role="main"]', '#main', '#content', '.content']
-        
-        for selector in semantic_selectors:
-            element = soup.select_one(selector)
-            if element and len(element.get_text().strip()) > 200:
-                return selector
-        
-        # Try to find the largest content block
-        content_candidates = soup.find_all(['div', 'section'])
-        if content_candidates:
-            largest = max(content_candidates, key=lambda x: len(x.get_text()))
-            if largest.get('id'):
-                return f"#{largest['id']}"
-            elif largest.get('class'):
-                return f".{largest['class'][0]}"
-        
-        return 'body'  # Fallback
-    
-    def _find_article_link_selectors(self, soup: BeautifulSoup, page_type: str) -> List[str]:
-        """Find selectors for article/content links on index pages"""
-        if page_type not in ['index', 'search_results']:
-            return []
-        
-        selectors = []
-        
-        # Look for links within likely article containers
-        article_containers = soup.select('.post, .article, .item, .entry, [class*="post"], [class*="article"]')
-        
-        for container in article_containers[:5]:  # Check first 5
-            # Find title links
-            title_links = container.find_all('a', href=True)
-            for link in title_links:
-                if link.find(['h1', 'h2', 'h3', 'h4']) or 'title' in ' '.join(link.get('class', [])).lower():
-                    # Generate selector for this type of link
-                    if container.get('class'):
-                        container_class = container['class'][0]
-                        selectors.append(f".{container_class} a")
-                        break
-        
-        # Common article link patterns
-        common_patterns = [
-            'h2 a', 'h3 a', '.title a', '.headline a',
-            'article a', '.post-title a', '.entry-title a'
-        ]
-        
-        for pattern in common_patterns:
-            if soup.select(pattern):
-                selectors.append(pattern)
-        
-        return list(set(selectors))  # Remove duplicates
-    
-    def _calculate_classification_confidence(self, page_type: str, content_richness: float, 
-                                          has_listings: bool, article_link_count: int) -> float:
-        """Calculate confidence in page classification"""
-        confidence = 0.6  # Base confidence
-        
-        # Strong indicators boost confidence
-        if page_type == 'index' and has_listings and article_link_count > 0:
-            confidence += 0.3
-        elif page_type == 'article' and content_richness > 0.5:
-            confidence += 0.3
-        elif page_type == 'product' and content_richness > 0.3:
-            confidence += 0.2
-        
-        return min(1.0, confidence)
 
 class UniversalHunter:
-    """Main hunting system that coordinates intent analysis, page classification, and content extraction"""
-    
-    def __init__(self, session=None, nlp_model=None):
-        self.session = session
-        self.intent_analyzer = UniversalIntentAnalyzer(nlp_model)
-        self.page_classifier = UniversalPageClassifier(nlp_model)
-        self.nlp = nlp_model or self.intent_analyzer.nlp
-        
-        # Hunting statistics
-        self.pages_analyzed = 0
-        self.targets_found = 0
-        self.navigation_hops = 0
-    
-    async def hunt(self, query: str, urls: List[str], max_targets: int = 5, direct_urls: bool = True) -> List[HuntingTarget]:
+    """
+    The orchestration engine that coordinates the hunting process.
+    It uses a combination of open-source tools for discovery and extraction.
+    """
+
+    def __init__(self, ai_service_client, concurrency_limit: int = 5, extraction_timeout: int = 30):
+        self.logger = logging.getLogger(__name__)
+        self.ai_service_client = ai_service_client
+        # The AsyncWebCrawler from crawl4ai will use the provided LLM client
+        # We will initialize it later with a proper LLMConfig
+        self.crawler = None
+        # Concurrency and resource management
+        self.concurrency_limit = concurrency_limit
+        self.extraction_timeout = extraction_timeout
+        self.semaphore = asyncio.Semaphore(concurrency_limit)
+
+    async def hunt(self, intent: HuntingIntent, max_targets: int = 5) -> List[HuntingResult]:
         """
-        Main hunting method that intelligently searches for content matching user intent
-        
-        Args:
-            query: User's hunting query
-            urls: Starting URLs to hunt from
-            max_targets: Maximum number of targets to return
-            direct_urls: If True, treat URLs as user-provided direct URLs (more lenient extraction)
-            
-        Returns:
-            List of HuntingTarget objects ranked by relevance and quality
+        Main hunting interface. It discovers URLs and extracts content based on the user's intent.
+        Enhanced with concurrency control and timeout management.
         """
-        logger.info(f"🎯 Starting intelligent hunt for: '{query}'")
+        self.logger.info(f"🎯 Starting hunt for: '{intent.query}'")
+
+        # 1. Discover URLs using DuckDuckGo
+        discovered_urls = self._discover_urls(intent.query, max_targets)
+        if not discovered_urls:
+            self.logger.warning("No URLs discovered.")
+            return []
+
+        # 2. Extract content from each URL with concurrency control
+        async def limited_extract(url: str) -> Dict[str, Any]:
+            async with self.semaphore:
+                try:
+                    return await asyncio.wait_for(
+                        self._extract_content(url, intent), 
+                        timeout=self.extraction_timeout
+                    )
+                except asyncio.TimeoutError:
+                    self.logger.warning(f"⏰ Extraction timed out for: {url}")
+                    return {
+                        "success": False,
+                        "error": "timeout",
+                        "url": url,
+                        "message": f"Extraction timed out after {self.extraction_timeout} seconds"
+                    }
+                except Exception as e:
+                    self.logger.error(f"❌ Extraction failed for {url}: {e}")
+                    return {
+                        "success": False,
+                        "error": "extraction_failed",
+                        "url": url,
+                        "message": str(e)
+                    }
+
+        extraction_tasks = [limited_extract(url) for url in discovered_urls]
+        extracted_data = await asyncio.gather(*extraction_tasks, return_exceptions=True)
+
+        # 3. Consolidate and rank the results
+        results = self._consolidate_results(discovered_urls, extracted_data, intent)
         
-        # Step 1: Analyze user intent
-        intent = self.intent_analyzer.analyze_intent(query)
-        logger.info(f"🧠 Intent analysis: {intent.target_type} in {intent.content_category} domain")
-        logger.info(f"   Temporal: {intent.temporal_preference}, Specificity: {intent.specificity}")
-        logger.info(f"   Entities: {intent.entities[:3]}...")
+        # 4. Deduplicate results
+        deduplicated_results = self._deduplicate_results(results)
         
-        # Step 2: Hunt through URLs
-        targets = []
-        for url in urls[:10]:  # Limit initial URLs
-            page_targets = await self._hunt_page(url, intent, query, is_direct_url=direct_urls)
-            targets.extend(page_targets)
+        # 5. Rank final results
+        ranked_results = self._rank_results(deduplicated_results)
+
+        self.logger.info(f"✅ Hunt complete. Found {len(ranked_results)} results.")
+        return ranked_results[:max_targets]
+
+    def _discover_urls(self, query: str, limit: int) -> List[str]:
+        """Discover relevant URLs using DuckDuckGo Search."""
+        self.logger.info(f"Discovering URLs for query: '{query}'")
+        try:
+            with DDGS() as ddgs:
+                results = [r for r in ddgs.text(query, max_results=limit)]
+                return [r['href'] for r in results]
+        except Exception as e:
+            self.logger.error(f"URL discovery with DuckDuckGo failed: {e}")
+            return []
+
+    async def _fetch_and_clean_html(self, url: str) -> Optional[Dict[str, str]]:
+        """
+        Fetches a URL and returns both raw HTML and extracted main article text.
+        Enhanced with better error handling and content validation.
+        """
+        self.logger.info(f"Fetching raw HTML and extracting main content: {url}")
+        
+        # Try with httpx first
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(15.0)) as client:
+                response = await client.get(
+                    url, 
+                    follow_redirects=True,
+                    headers={
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    }
+                )
+                response.raise_for_status()
+                raw_html = response.text
+                
+                # Use Trafilatura to extract the main article content
+                article_text = extract(
+                    raw_html,
+                    favor_precision=True,       # try to return the most content
+                    include_comments=False,
+                    include_tables=False
+                )
+                
+                # Validate that we got meaningful content
+                if article_text and len(article_text.strip()) > 50:
+                    self.logger.info(f"Successfully extracted {len(article_text)} characters from {url}")
+                    return {
+                        "raw_html": raw_html,
+                        "article_text": article_text
+                    }
+                else:
+                    # Try without trafilatura cleaning if extraction is too short
+                    self.logger.warning(f"Trafilatura extraction too short ({len(article_text or '')} chars), trying raw HTML")
+                    from bs4 import BeautifulSoup
+                    soup = BeautifulSoup(raw_html, 'html.parser')
+                    
+                    # Remove script and style elements
+                    for script in soup(["script", "style"]):
+                        script.decompose()
+                    
+                    # Get text content
+                    text = soup.get_text()
+                    
+                    # Clean up whitespace
+                    lines = (line.strip() for line in text.splitlines())
+                    chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+                    text = ' '.join(chunk for chunk in chunks if chunk)
+                    
+                    if text and len(text.strip()) > 50:
+                        self.logger.info(f"Successfully extracted {len(text)} characters using BeautifulSoup from {url}")
+                        return {
+                            "raw_html": raw_html,
+                            "article_text": text
+                        }
+                    else:
+                        self.logger.warning(f"No meaningful content extracted from {url}")
+                        return None
+                        
+        except (httpx.RequestError, httpx.HTTPStatusError) as e:
+            self.logger.warning(f"httpx fetch failed for {url}: {e}. Falling back to Playwright.")
+
+        # Fallback to Playwright if httpx fails
+        try:
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                page = await browser.new_page()
+                await page.goto(url, wait_until='networkidle', timeout=30000)
+                raw_html = await page.content()
+                await browser.close()
+                
+                # Use Trafilatura to extract the main article content
+                article_text = extract(
+                    raw_html,
+                    favor_precision=True,
+                    include_comments=False,
+                    include_tables=False
+                )
+                
+                if article_text and len(article_text.strip()) > 50:
+                    self.logger.info(f"Successfully extracted {len(article_text)} characters via Playwright from {url}")
+                    return {
+                        "raw_html": raw_html,
+                        "article_text": article_text
+                    }
+                    
+        except Exception as e:
+            self.logger.error(f"Playwright fetch failed for {url}: {e}")
+            return None
+
+    async def _extract_structured_data_non_llm(self, raw_html: str, article_text: str, schema: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extracts structured data from raw HTML and article text using BeautifulSoup and heuristic rules.
+        Uses raw HTML for metadata extraction and article text for content.
+        """
+        self.logger.info("Attempting non-LLM structured data extraction.")
+        extracted_data = {}
+        soup = BeautifulSoup(raw_html, 'lxml')
+
+        properties = schema.get("properties", {})
+        
+        # Heuristics for common fields
+        for field_name, field_props in properties.items():
+            if field_name == "title":
+                # Enhanced title extraction using multiple strategies
+                title = self._extract_title_heuristics(soup)
+                if title:
+                    extracted_data[field_name] = title
             
-            if len(targets) >= max_targets * 2:  # Get extra for ranking
-                break
+            elif field_name == "url":
+                # Canonical URL or current URL (if available from metadata)
+                canonical_link = soup.find('link', {'rel': 'canonical'})
+                if canonical_link and canonical_link.get('href'):
+                    extracted_data[field_name] = canonical_link['href']
+                # Note: Original URL would need to be passed from the calling method
+
+            elif field_name == "summary" or field_name == "description":
+                # Try meta description first
+                meta_desc = soup.find('meta', {'name': 'description'})
+                if meta_desc and meta_desc.get('content'):
+                    extracted_data[field_name] = meta_desc['content'].strip()
+                else:
+                    # Fallback to first part of article text
+                    if article_text:
+                        # Take first 2-3 sentences or up to 500 characters
+                        sentences = article_text.split('. ')
+                        summary = '. '.join(sentences[:3])
+                        if len(summary) > 500:
+                            summary = summary[:500] + "..."
+                        extracted_data[field_name] = summary
+            
+            elif field_name == "author":
+                # Try common author meta tags or bylines
+                author_meta = soup.find('meta', {'name': 'author'})
+                if author_meta and author_meta.get('content'):
+                    extracted_data[field_name] = author_meta['content'].strip()
+                else:
+                    # Try other common meta tags
+                    author_meta = soup.find('meta', {'property': 'article:author'}) or \
+                                soup.find('meta', {'name': 'article:author'})
+                    if author_meta and author_meta.get('content'):
+                        extracted_data[field_name] = author_meta['content'].strip()
+                    else:
+                        # Try common CSS selectors for author
+                        author_selectors = [
+                            '[data-author]', '.author', '.byline', '.by-author',
+                            '[rel="author"]', '.article-author', '.post-author'
+                        ]
+                        for selector in author_selectors:
+                            author_elem = soup.select_one(selector)
+                            if author_elem:
+                                author_text = author_elem.get_text(strip=True)
+                                if author_text and len(author_text) < 100:  # Reasonable author name length
+                                    extracted_data[field_name] = author_text
+                                    break
+
+            elif field_name == "publication_date" or field_name == "date_published":
+                # Try common date meta tags or time tags
+                date_meta = soup.find('meta', {'property': 'article:published_time'}) or \
+                           soup.find('meta', {'name': 'date'}) or \
+                           soup.find('meta', {'name': 'publish_date'}) or \
+                           soup.find('meta', {'property': 'article:published'})
+                           
+                if date_meta and date_meta.get('content'):
+                    extracted_data[field_name] = date_meta['content'].strip()
+                else:
+                    # Try time tags
+                    time_tag = soup.find('time')
+                    if time_tag and time_tag.get('datetime'):
+                        extracted_data[field_name] = time_tag['datetime'].strip()
+                    elif time_tag and time_tag.get_text(strip=True):
+                        extracted_data[field_name] = time_tag.get_text(strip=True)
+
+            elif field_name in ["full_content", "article_content", "content"]:
+                # Use the main article content extracted by Trafilatura
+                if article_text:
+                    extracted_data[field_name] = article_text
+
+            elif field_name == "image_urls":
+                # Extract image URLs from within the main article content area
+                images = self._extract_article_images(soup, article_text)
+                if images:
+                    extracted_data[field_name] = images
+            
+            # Generic CSS selector extraction if 'selector' is provided in schema property
+            if "selector" in field_props:
+                elements = soup.select(field_props["selector"])
+                if elements:
+                    if field_props.get("type") == "text":
+                        extracted_data[field_name] = elements[0].get_text(strip=True)
+                    elif field_props.get("type") == "attribute" and "attribute" in field_props:
+                        extracted_data[field_name] = elements[0].get(field_props["attribute"])
+                    elif field_props.get("type") == "list":
+                        extracted_data[field_name] = [el.get_text(strip=True) for el in elements]
+                    # Add more types as needed (e.g., nested objects)
+
+        return {k: v for k, v in extracted_data.items() if v is not None and v != ''}
+
+    def _extract_title_heuristics(self, soup: BeautifulSoup) -> Optional[str]:
+        """Enhanced title extraction using multiple strategies."""
+        # Strategy 1: <title> tag
+        title_tag = soup.find('title')
+        if title_tag and title_tag.string:
+            title = title_tag.string.strip()
+            # Clean up common title patterns
+            title = re.sub(r'\s*\|\s*.*$', '', title)  # Remove "| Site Name" 
+            title = re.sub(r'\s*-\s*.*$', '', title)   # Remove "- Site Name"
+            if title:
+                return title
+
+        # Strategy 2: Open Graph title
+        og_title = soup.find('meta', {'property': 'og:title'})
+        if og_title and og_title.get('content'):
+            return og_title['content'].strip()
+
+        # Strategy 3: Twitter title
+        twitter_title = soup.find('meta', {'name': 'twitter:title'})
+        if twitter_title and twitter_title.get('content'):
+            return twitter_title['content'].strip()
+
+        # Strategy 4: First h1 tag
+        h1_tag = soup.find('h1')
+        if h1_tag and h1_tag.get_text(strip=True):
+            return h1_tag.get_text(strip=True)
+
+        # Strategy 5: Article title selector
+        article_title_selectors = [
+            'article h1', '.article-title', '.post-title', 
+            '.entry-title', '[data-title]', '.title'
+        ]
+        for selector in article_title_selectors:
+            title_elem = soup.select_one(selector)
+            if title_elem:
+                title_text = title_elem.get_text(strip=True)
+                if title_text:
+                    return title_text
+
+        return None
+
+    def _extract_article_images(self, soup: BeautifulSoup, article_text: str) -> List[str]:
+        """
+        Extract image URLs from within the main article content area, 
+        filtering out ads, logos, and placeholder images.
+        """
+        images = []
         
-        # Step 3: Rank and filter targets
-        ranked_targets = self._rank_targets(targets, intent, query)
+        # First, try to find images within article tags
+        article_containers = soup.find_all(['article', 'main', '.content', '.post-content', '.article-content'])
+        if not article_containers:
+            # Fallback to any container that might hold the main content
+            article_containers = [soup]
         
-        logger.info(f"🏆 Hunt completed: Found {len(ranked_targets)} high-quality targets")
-        logger.info(f"📊 Stats: {self.pages_analyzed} pages analyzed, {self.navigation_hops} navigation hops")
+        for container in article_containers:
+            for img in container.find_all('img'):
+                src = img.get('src') or img.get('data-src') or img.get('data-original')
+                if src and self._is_valid_article_image(src, img):
+                    # Convert relative URLs to absolute if needed
+                    if src.startswith('http'):
+                        images.append(src)
+                    elif src.startswith('//'):
+                        images.append('https:' + src)
+                    # Skip relative URLs for now as we don't have the base URL
+                    
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_images = []
+        for img in images:
+            if img not in seen:
+                seen.add(img)
+                unique_images.append(img)
+                
+        return unique_images[:10]  # Limit to first 10 images
+
+    def _is_valid_article_image(self, src: str, img_tag) -> bool:
+        """
+        Check if an image URL is likely to be a valid article image
+        (not an ad, logo, or placeholder).
+        """
+        # Filter out obvious non-article images
+        src_lower = src.lower()
         
-        return ranked_targets[:max_targets]
-    
-    async def _hunt_page(self, url: str, intent: HuntingIntent, query: str, is_direct_url: bool = False) -> List[HuntingTarget]:
-        """Hunt a specific page for targets"""
-        self.pages_analyzed += 1
-        targets = []
+        # Skip placeholder and example images
+        if any(domain in src_lower for domain in [
+            'example.com', 'placeholder', 'lorem', 'dummy', 'fake',
+            'test.jpg', 'sample.', 'default.', 'blank.'
+        ]):
+            return False
+            
+        # Skip very small images (likely icons/logos)
+        width = img_tag.get('width')
+        height = img_tag.get('height')
+        if width and height:
+            try:
+                w, h = int(width), int(height)
+                if w < 100 or h < 100:  # Skip very small images
+                    return False
+            except (ValueError, TypeError):
+                pass
+                
+        # Skip images with ad-related classes or attributes
+        classes = img_tag.get('class', [])
+        if isinstance(classes, str):
+            classes = [classes]
+        
+        ad_indicators = ['ad', 'advertisement', 'sponsor', 'banner', 'logo', 'icon']
+        if any(indicator in ' '.join(classes).lower() for indicator in ad_indicators):
+            return False
+            
+        # Skip images with ad-related alt text
+        alt_text = img_tag.get('alt', '').lower()
+        if any(indicator in alt_text for indicator in ad_indicators):
+            return False
+            
+        return True
+
+    def _validate_schema(self, data: Dict[str, Any], schema: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validate extracted data against JSON schema and auto-fix common issues.
+        Returns validation result with fixed data and error details.
+        """
+        validation_result = {
+            "is_valid": False,
+            "data": data.copy(),
+            "errors": [],
+            "fixes_applied": []
+        }
         
         try:
-            # Get page content
-            if self.session:
-                async with self.session.get(url, timeout=10) as response:
-                    if response.status != 200:
-                        return targets
-                    html = await response.text()
-            else:
-                # Fallback - in real implementation would use proper HTTP client
-                return targets
+            # First, try basic validation
+            validate(instance=data, schema=schema)
+            validation_result["is_valid"] = True
+            return validation_result
             
-            # Classify the page
-            classification = self.page_classifier.classify_page(html, url)
-            logger.info(f"📄 Page classified: {classification.page_type} (confidence: {classification.confidence:.2f})")
+        except ValidationError as e:
+            validation_result["errors"].append({
+                "path": list(e.path),
+                "message": e.message,
+                "field": e.path[-1] if e.path else "root"
+            })
             
-            # Hunt based on page type
-            if classification.page_type == 'index' and classification.has_listings:
-                targets = await self._hunt_index_page(html, url, classification, intent, query)
-            elif classification.page_type in ['article', 'product', 'profile']:
-                target = await self._extract_content_page(html, url, classification, intent, query, is_direct_url)
-                if target:
-                    targets = [target]
-            else:
-                # Try both approaches for ambiguous pages
-                target = await self._extract_content_page(html, url, classification, intent, query, is_direct_url)
-                if target and target.quality_score > 0.3:
-                    targets = [target]
-                else:
-                    targets = await self._hunt_index_page(html, url, classification, intent, query)
+            # Attempt auto-fixes for common issues
+            fixed_data = data.copy()
             
-        except Exception as e:
-            logger.error(f"❌ Error hunting page {url}: {e}")
-        
-        return targets
-    
-    async def _hunt_index_page(self, html: str, base_url: str, classification: PageClassification,
-                              intent: HuntingIntent, query: str) -> List[HuntingTarget]:
-        """Hunt an index/listing page by following links to content"""
-        targets = []
-        soup = BeautifulSoup(html, 'html.parser')
-        
-        logger.info(f"🔍 Hunting index page with {len(classification.article_link_selectors)} link patterns")
-        
-        # Extract article links
-        article_links = []
-        for selector in classification.article_link_selectors:
-            links = soup.select(selector)
-            for link in links[:5]:  # Limit per selector
-                href = link.get('href')
-                if href:
-                    full_url = urljoin(base_url, href)
-                    title = link.get_text().strip() or link.get('title', '')
-                    
-                    # Filter links based on intent relevance
-                    if self._is_link_relevant(title, full_url, intent):
-                        article_links.append((full_url, title))
-        
-        logger.info(f"🔗 Found {len(article_links)} relevant article links")
-        
-        # Hunt the most promising article links
-        for article_url, link_title in article_links[:8]:  # Limit navigation
-            self.navigation_hops += 1
-            
-            try:
-                if self.session:
-                    async with self.session.get(article_url, timeout=8) as response:
-                        if response.status == 200:
-                            article_html = await response.text()
-                            article_classification = self.page_classifier.classify_page(article_html, article_url)
-                            
-                            target = await self._extract_content_page(
-                                article_html, article_url, article_classification, intent, query, False  # Links from index pages are not direct URLs
-                            )
-                            
-                            if target and target.quality_score > 0.4:
-                                targets.append(target)
-                                self.targets_found += 1
+            # Auto-fix type mismatches
+            if "properties" in schema:
+                for field, field_schema in schema["properties"].items():
+                    if field in fixed_data:
+                        expected_type = field_schema.get("type")
+                        current_value = fixed_data[field]
+                        
+                        # Fix string to number conversions
+                        if expected_type == "number" and isinstance(current_value, str):
+                            try:
+                                fixed_data[field] = float(current_value.replace(',', ''))
+                                validation_result["fixes_applied"].append(f"Converted {field} from string to number")
+                            except ValueError:
+                                pass
                                 
-                                if len(targets) >= 5:  # Limit targets per index page
-                                    break
+                        # Fix string to integer conversions  
+                        elif expected_type == "integer" and isinstance(current_value, str):
+                            try:
+                                fixed_data[field] = int(float(current_value.replace(',', '')))
+                                validation_result["fixes_applied"].append(f"Converted {field} from string to integer")
+                            except ValueError:
+                                pass
+                                
+                        # Fix array to string or vice versa
+                        elif expected_type == "array" and not isinstance(current_value, list):
+                            if isinstance(current_value, str):
+                                # Split string into array if it contains separators
+                                if ',' in current_value:
+                                    fixed_data[field] = [item.strip() for item in current_value.split(',')]
+                                    validation_result["fixes_applied"].append(f"Split {field} string into array")
+                                else:
+                                    fixed_data[field] = [current_value]
+                                    validation_result["fixes_applied"].append(f"Wrapped {field} string in array")
+                                    
+                        elif expected_type == "string" and isinstance(current_value, list):
+                            fixed_data[field] = ', '.join(str(item) for item in current_value)
+                            validation_result["fixes_applied"].append(f"Joined {field} array into string")
+                            
+                        # Fix boolean conversions
+                        elif expected_type == "boolean" and isinstance(current_value, str):
+                            if current_value.lower() in ["true", "1", "yes", "on"]:
+                                fixed_data[field] = True
+                                validation_result["fixes_applied"].append(f"Converted {field} string to boolean")
+                            elif current_value.lower() in ["false", "0", "no", "off"]:
+                                fixed_data[field] = False
+                                validation_result["fixes_applied"].append(f"Converted {field} string to boolean")
+            
+            # Try validation again with fixed data
+            try:
+                validate(instance=fixed_data, schema=schema)
+                validation_result["is_valid"] = True
+                validation_result["data"] = fixed_data
+            except ValidationError as retry_error:
+                validation_result["errors"].append({
+                    "path": list(retry_error.path),
+                    "message": retry_error.message,
+                    "field": retry_error.path[-1] if retry_error.path else "root",
+                    "after_fixes": True
+                })
                 
-            except Exception as e:
-                logger.debug(f"Error hunting article {article_url}: {e}")
-                continue
-        
-        return targets
-    
-    async def _extract_content_page(self, html: str, url: str, classification: PageClassification,
-                                   intent: HuntingIntent, query: str, is_direct_url: bool = False) -> Optional[HuntingTarget]:
-        """Extract content from a content page (article, product, etc.)
-        
-        Args:
-            is_direct_url: If True, use more lenient thresholds for user-provided URLs
-        """
-        soup = BeautifulSoup(html, 'html.parser')
-        
-        # Remove navigation/noise
-        for element in soup(['nav', 'footer', 'header', 'aside', 'script', 'style']):
-            element.decompose()
-        
-        # Extract main content
-        main_content = soup.select_one(classification.main_content_selector)
-        if not main_content:
-            main_content = soup
-        
-        # Extract text content
-        raw_text = main_content.get_text().strip()
-        text_content = self._clean_extracted_text(raw_text)
-        
-        if len(text_content) < 100:  # Too little content after cleaning
-            return None
-        
-        # Extract title
-        title = self._extract_title(soup)
-        
-        # Extract metadata
-        metadata = self._extract_metadata(soup, classification.page_type)
-        
-        # Score relevance and quality
-        relevance_score = self._calculate_relevance_score(text_content, title, intent, query)
-        quality_score = self._calculate_quality_score(text_content, title, metadata, classification)
-        
-        # Only return high-quality, relevant content
-        # Use more lenient thresholds for direct URLs from user
-        if is_direct_url:
-            # For direct URLs, be more lenient - user explicitly provided this URL
-            relevance_threshold = 0.1  # Much lower relevance requirement
-            quality_threshold = 0.1    # Lower quality requirement
-        else:
-            # For discovered URLs, maintain strict thresholds
-            relevance_threshold = 0.3
-            quality_threshold = 0.2
-            
-        if relevance_score < relevance_threshold or quality_score < quality_threshold:
-            return None
-        
-        return HuntingTarget(
-            url=url,
-            title=title,
-            content_preview=text_content[:500],
-            relevance_score=relevance_score,
-            quality_score=quality_score,
-            content_type=classification.page_type,
-            extraction_method='intelligent_hunting',
-            metadata=metadata
-        )
-    
-    def _is_link_relevant(self, link_text: str, link_url: str, intent: HuntingIntent) -> bool:
-        """Check if a link is relevant to the hunting intent"""
-        text_lower = link_text.lower()
-        url_lower = link_url.lower()
-        combined = text_lower + ' ' + url_lower
-        
-        # Check for entity matches
-        entity_matches = sum(1 for entity in intent.entities 
-                           if entity.lower() in combined)
-        
-        # Check for keyword matches
-        keyword_matches = sum(1 for keyword in intent.keywords 
-                            if keyword.lower() in combined)
-        
-        # Calculate relevance score
-        relevance = (entity_matches * 0.4 + keyword_matches * 0.2) / max(1, len(intent.entities) + len(intent.keywords))
-        
-        # Temporal filtering
-        if intent.temporal_preference == 'latest':
-            temporal_words = ['latest', 'new', 'recent', '2024', '2025']
-            if any(word in combined for word in temporal_words):
-                relevance += 0.2
-        
-        return relevance > 0.3
-    
-    def _extract_title(self, soup: BeautifulSoup) -> str:
-        """Extract the best title from the page"""
-        # Try different title sources in order of preference
-        title_selectors = ['h1', 'title', '.title', '.headline', '.post-title', '.entry-title']
-        
-        for selector in title_selectors:
-            element = soup.select_one(selector)
-            if element:
-                raw_title = element.get_text().strip()
-                if raw_title and len(raw_title) > 5:
-                    # Clean the title
-                    title = self._clean_extracted_text(raw_title)
-                    # For titles, we want single line
-                    title = title.replace('\n', ' ').strip()
-                    if title and len(title) > 5:
-                        return title
-        
-        return "Untitled Content"
-    
-    def _extract_metadata(self, soup: BeautifulSoup, content_type: str) -> Dict[str, Any]:
-        """Extract metadata appropriate for the content type"""
-        metadata = {}
-        
-        # Date/time
-        date_selectors = ['time', '.date', '.published', '[datetime]']
-        for selector in date_selectors:
-            element = soup.select_one(selector)
-            if element:
-                metadata['date'] = element.get('datetime') or element.get_text().strip()
-                break
-        
-        # Author
-        author_selectors = ['.author', '[rel="author"]', '.byline']
-        for selector in author_selectors:
-            element = soup.select_one(selector)
-            if element:
-                metadata['author'] = element.get_text().strip()
-                break
-        
-        # Content-specific metadata
-        if content_type == 'product':
-            # Price
-            price_selectors = ['.price', '[data-price]', '.cost']
-            for selector in price_selectors:
-                element = soup.select_one(selector)
-                if element:
-                    metadata['price'] = element.get_text().strip()
-                    break
-        
-        return metadata
-    
-    def _calculate_relevance_score(self, content: str, title: str, intent: HuntingIntent, query: str) -> float:
-        """Calculate how relevant content is to the hunting intent"""
-        if not self.nlp:
-            return 0.5
-        
-        # Create document from content
-        content_doc = self.nlp(content[:1000])  # Limit for performance
-        title_doc = self.nlp(title)
-        query_doc = self.nlp(query)
-        
-        # Calculate semantic similarity
-        content_similarity = content_doc.similarity(query_doc) if hasattr(content_doc, 'similarity') else 0.3
-        title_similarity = title_doc.similarity(query_doc) if hasattr(title_doc, 'similarity') else 0.3
-        
-        # Entity matching
-        content_lower = content.lower()
-        entity_score = sum(1 for entity in intent.entities if entity.lower() in content_lower)
-        entity_score = min(1.0, entity_score / max(1, len(intent.entities)))
-        
-        # Keyword matching
-        keyword_score = sum(1 for keyword in intent.keywords if keyword.lower() in content_lower)
-        keyword_score = min(1.0, keyword_score / max(1, len(intent.keywords)))
-        
-        # Combine scores
-        relevance = (
-            content_similarity * 0.4 +
-            title_similarity * 0.3 +
-            entity_score * 0.2 +
-            keyword_score * 0.1
-        )
-        
-        return min(1.0, relevance)
-    
-    def _calculate_quality_score(self, content: str, title: str, metadata: Dict[str, Any], 
-                                classification: PageClassification) -> float:
-        """Calculate content quality score"""
-        quality = 0.0
-        
-        # Content length (sweet spot around 1000-5000 chars)
-        content_length = len(content)
-        if content_length < 200:
-            length_score = content_length / 200
-        elif content_length > 5000:
-            length_score = 0.8
-        else:
-            length_score = min(1.0, content_length / 1000)
-        
-        quality += length_score * 0.3
-        
-        # Title quality
-        title_score = min(1.0, len(title) / 50) if title and title != "Untitled Content" else 0.1
-        quality += title_score * 0.2
-        
-        # Metadata richness
-        metadata_score = min(1.0, len(metadata) / 3)
-        quality += metadata_score * 0.2
-        
-        # Classification confidence
-        quality += classification.confidence * 0.2
-        
-        # Content richness from classification
-        quality += classification.content_richness * 0.1
-        
-        return min(1.0, quality)
-    
-    def _rank_targets(self, targets: List[HuntingTarget], intent: HuntingIntent, query: str) -> List[HuntingTarget]:
-        """Rank targets by combined relevance and quality scores"""
-        # Calculate combined scores
-        for target in targets:
-            # Weight relevance higher for specific queries, quality higher for general queries
-            if intent.specificity == 'specific':
-                target.combined_score = target.relevance_score * 0.7 + target.quality_score * 0.3
-            else:
-                target.combined_score = target.relevance_score * 0.5 + target.quality_score * 0.5
-        
-        # Sort by combined score
-        ranked = sorted(targets, key=lambda t: t.combined_score, reverse=True)
-        
-        # Remove near-duplicates
-        deduplicated = []
-        seen_content_hashes = set()
-        
-        for target in ranked:
-            # Create content hash for deduplication
-            content_hash = hashlib.md5(
-                (target.title + target.content_preview[:200]).encode()
-            ).hexdigest()
-            
-            if content_hash not in seen_content_hashes:
-                seen_content_hashes.add(content_hash)
-                deduplicated.append(target)
-        
-        return deduplicated
+        return validation_result
 
-    def _clean_extracted_text(self, text: str) -> str:
-        """Clean and normalize extracted text content"""
-        import re
+    async def _extract_content(self, url: str, intent: HuntingIntent) -> Dict[str, Any]:
+        """
+        Extracts structured content from a URL using a multi-stage process:
+        1. Fetch and clean HTML.
+        2. Attempt non-LLM heuristic extraction.
+        3. If non-LLM is insufficient, use LLM for refinement/extraction.
         
-        if not text:
-            return ""
+        Returns structured result with success/error information and partial data.
+        """
+        import time
+        start_time = time.time()
+        extraction_metadata = {
+            "extraction_time": 0,
+            "method_used": None,
+            "stages_attempted": []
+        }
         
-        # Remove common HTML entities and artifacts
-        text = text.replace('&nbsp;', ' ')
-        text = text.replace('&amp;', '&')
-        text = text.replace('&lt;', '<')
-        text = text.replace('&gt;', '>')
-        text = text.replace('&quot;', '"')
-        text = text.replace('&#39;', "'")
+        self.logger.info(f"Extracting content from: {url}")
         
-        # Remove multiple consecutive whitespace/newlines
-        text = re.sub(r'\n\s*\n', '\n\n', text)  # Multiple newlines to double newline
-        text = re.sub(r'[ \t]+', ' ', text)      # Multiple spaces/tabs to single space
-        text = re.sub(r'\n{3,}', '\n\n', text)   # More than 2 newlines to 2 newlines
-        
-        # Remove common web artifacts
-        patterns_to_remove = [
-            r'Share\s*Tweet\s*',
-            r'(Image credit:.*?)\n',
-            r'(Photo credit:.*?)\n',
-            r'(Credit:.*?)\n\n\n+',
-            r'Subscribe\s*',
-            r'Sign up\s*',
-            r'Newsletter\s*',
-            r'Follow us\s*',
-            r'Read more\s*',
-            r'Loading\.\.\.\s*',
-            r'Advertisement\s*',
-            r'Sponsored\s*',
-            r'Click here.*?\s*',
-            r'\s*\|\s*[A-Z][a-z]{2}\s+\d{1,2}\s+\d{4}\s*-\s*\d{1,2}:\d{2}\s+[ap]m\s+[A-Z]{2,3}\s*',  # Date patterns
-        ]
-        
-        for pattern in patterns_to_remove:
-            text = re.sub(pattern, '', text, flags=re.IGNORECASE)
-        
-        # Clean up navigation and menu artifacts
-        lines = text.split('\n')
-        cleaned_lines = []
-        
-        for line in lines:
-            line = line.strip()
+        try:
+            # Stage 1: Fetch and clean HTML
+            extraction_metadata["stages_attempted"].append("fetch_html")
+            content_data = await self._fetch_and_clean_html(url)
+            if not content_data:
+                self.logger.warning(f"Could not retrieve main content from {url}")
+                return {
+                    "success": False,
+                    "url": url,
+                    "error": "fetch_failed",
+                    "message": "Could not retrieve main content",
+                    "data": {},
+                    "partial_data": {},
+                    "errors": [{"type": "network", "message": "Failed to fetch or clean HTML", "stage": "fetch_html"}],
+                    "metadata": extraction_metadata
+                }
+
+            raw_html = content_data["raw_html"]
+            article_text = content_data["article_text"]
+
+            # Stage 2: Attempt non-LLM heuristic extraction
+            extraction_metadata["stages_attempted"].append("heuristic_extraction")
+            non_llm_extracted_data = await self._extract_structured_data_non_llm(raw_html, article_text, intent.output_schema)
             
-            # Skip very short lines that are likely navigation
-            if len(line) < 3:
+            # Check if non-LLM extraction is sufficient (e.g., all required fields are present)
+            required_fields = intent.output_schema.get("required", [])
+            missing_fields = [field for field in required_fields if field not in non_llm_extracted_data or not non_llm_extracted_data[field]]
+            
+            if not missing_fields and non_llm_extracted_data:
+                # Validate schema before returning
+                validation_result = self._validate_schema(non_llm_extracted_data, intent.output_schema)
+                extraction_metadata["method_used"] = "heuristic"
+                extraction_metadata["extraction_time"] = time.time() - start_time
+                extraction_metadata["validation"] = {
+                    "is_valid": validation_result["is_valid"],
+                    "fixes_applied": validation_result["fixes_applied"]
+                }
+                
+                self.logger.info(f"Non-LLM extraction sufficient for {url}. Schema valid: {validation_result['is_valid']}")
+                
+                return {
+                    "success": True,
+                    "url": url,
+                    "data": validation_result["data"],
+                    "partial_data": {},
+                    "errors": validation_result["errors"],
+                    "metadata": extraction_metadata
+                }
+            else:
+                self.logger.info(f"Non-LLM extraction insufficient for {url}. Missing fields: {missing_fields}. Falling back to LLM.")
+                
+                # Stage 3: Fallback to LLM-guided extraction for refinement or full extraction
+                extraction_metadata["stages_attempted"].append("llm_extraction")
+                try:
+                    instruction = f"""
+                    From the provided webpage content, extract the following information into a JSON object, strictly adhering to the provided JSON schema.
+                    - 'title': The main title of the article or page.
+                    - 'url': The canonical URL of the article or page.
+                    - 'summary': A concise summary of the article's main points. If no explicit summary is available, generate a brief summary based on the main content.
+                    - 'author': The author of the content.
+                    - 'publication_date': The date the content was published.
+                    - 'full_content': The complete main textual content of the page.
+                    - 'image_urls': A list of relevant image URLs from the content.
+
+                    Desired JSON Schema: {json.dumps(intent.output_schema)}
+
+                    Prioritize filling all fields, especially required ones. If some data was already extracted by non-LLM methods,
+                    use that as a starting point and fill in any missing or refine existing fields.
+                    """
+                    
+                    # Get the default model configuration from the AI service client
+                    default_model_name = self.ai_service_client.default_model_name
+                    default_model_config = next(
+                        (m for m in self.ai_service_client._config.get("models", []) if m["name"] == default_model_name),
+                        None
+                    )
+
+                    if not default_model_config:
+                        raise ValueError("Default AI model configuration not found.")
+
+                    # Create LLMConfig from the AI service's model configuration
+                    provider_string = f"{default_model_config['type']}/{default_model_config['model_id']}"
+                    
+                    # Ensure API key is passed if available
+                    api_key_for_llm = default_model_config.get("api_key")
+                    if not api_key_for_llm:
+                        self.logger.warning(f"No API key found for model {default_model_name}. LLM extraction might fail.")
+
+                    llm_config = LLMConfig(
+                        provider=default_model_config['type'], # Use just the provider type here
+                        api_token=api_key_for_llm # Pass the API key
+                    )
+
+                    # Initialize the crawler here with the correct LLMConfig
+                    if self.crawler is None:
+                        self.crawler = AsyncWebCrawler(llm_config=llm_config)
+
+                    strategy = LLMExtractionStrategy(
+                        llm_config=llm_config,
+                        model=provider_string, # Pass the full model string including provider
+                        schema=intent.output_schema,
+                        extraction_type="schema",
+                        instruction=instruction, # Use the more specific instruction
+                        extra_args={"api_token": api_key_for_llm} # Pass API token as extra_args
+                    )
+                    config = CrawlerRunConfig(extraction_strategy=strategy)
+                    
+                    # Pass the original URL directly to arun, let crawl4ai handle fetching and processing
+                    result = await self.crawler.arun(url=url, config=config)
+
+                    # Parse the JSON string content into a dictionary
+                    if result.extracted_content:
+                        try:
+                            llm_extracted_data = json.loads(result.extracted_content)
+                            
+                            # Validate schema for LLM data
+                            validation_result = self._validate_schema(llm_extracted_data, intent.output_schema)
+                            extraction_metadata["method_used"] = "llm"
+                            extraction_metadata["extraction_time"] = time.time() - start_time
+                            extraction_metadata["validation"] = {
+                                "is_valid": validation_result["is_valid"],
+                                "fixes_applied": validation_result["fixes_applied"]
+                            }
+                            
+                            return {
+                                "success": True,
+                                "url": url,
+                                "data": validation_result["data"],
+                                "partial_data": non_llm_extracted_data,
+                                "errors": validation_result["errors"],
+                                "metadata": extraction_metadata
+                            }
+                        except json.JSONDecodeError as e:
+                            self.logger.error(f"Failed to decode JSON from extracted content for {url}: {e}. Content: {result.extracted_content[:500]}...")
+                            extraction_metadata["extraction_time"] = time.time() - start_time
+                            return {
+                                "success": False,
+                                "url": url,
+                                "error": "json_decode_failed",
+                                "message": f"Failed to decode LLM JSON response: {str(e)}",
+                                "data": {},
+                                "partial_data": non_llm_extracted_data,
+                                "errors": [{"type": "parsing", "message": str(e), "stage": "llm_extraction"}],
+                                "metadata": extraction_metadata
+                            }
+                    else:
+                        extraction_metadata["extraction_time"] = time.time() - start_time
+                        return {
+                            "success": False,
+                            "url": url,
+                            "error": "llm_no_content",
+                            "message": "LLM extraction returned no content",
+                            "data": {},
+                            "partial_data": non_llm_extracted_data,
+                            "errors": [{"type": "extraction", "message": "LLM returned no content", "stage": "llm_extraction"}],
+                            "metadata": extraction_metadata
+                        }
+                        
+                except Exception as llm_error:
+                    self.logger.error(f"LLM extraction failed for {url}: {llm_error}")
+                    extraction_metadata["extraction_time"] = time.time() - start_time
+                    return {
+                        "success": False,
+                        "url": url,
+                        "error": "llm_extraction_failed",
+                        "message": str(llm_error),
+                        "data": {},
+                        "partial_data": non_llm_extracted_data,
+                        "errors": [{"type": "llm", "message": str(llm_error), "stage": "llm_extraction"}],
+                        "metadata": extraction_metadata
+                    }
+
+        except Exception as e:
+            extraction_metadata["extraction_time"] = time.time() - start_time
+            self.logger.error(f"Content extraction failed for {url}: {e}")
+            return {
+                "success": False,
+                "url": url,
+                "error": "extraction_failed",
+                "message": str(e),
+                "data": {},
+                "partial_data": {},
+                "errors": [{"type": "general", "message": str(e), "stage": "unknown"}],
+                "metadata": extraction_metadata
+            }
+
+
+    def _consolidate_results(self, urls: List[str], extractions: List[Dict[str, Any]], intent: HuntingIntent) -> List[HuntingResult]:
+        """
+        Consolidate the extracted data into a list of HuntingResult objects.
+        Now handles both successful and failed extractions with structured error information.
+        """
+        results = []
+        for url, extraction_result in zip(urls, extractions):
+            if isinstance(extraction_result, Exception):
+                # Handle exceptions that weren't caught by the timeout wrapper
+                self.logger.error(f"Unhandled exception for {url}: {extraction_result}")
                 continue
                 
-            # Skip lines that are just navigation words
-            nav_words = ['home', 'about', 'contact', 'login', 'register', 'menu', 'search']
-            if line.lower() in nav_words:
+            if extraction_result and extraction_result.get("success", False):
+                # Successful extraction
+                data = extraction_result.get("data", {})
+                if data:  # Only include if we have actual data
+                    relevance = self._calculate_relevance(data, intent)
+                    results.append(HuntingResult(
+                        url=url, 
+                        data=data, 
+                        relevance_score=relevance
+                    ))
+            elif extraction_result and extraction_result.get("partial_data"):
+                # Failed extraction but has partial data - include with lower relevance
+                partial_data = extraction_result.get("partial_data", {})
+                if partial_data:
+                    relevance = self._calculate_relevance(partial_data, intent) * 0.5  # Reduce relevance for partial data
+                    # Add error information to the data
+                    enhanced_data = {
+                        **partial_data,
+                        "_extraction_status": "partial",
+                        "_errors": extraction_result.get("errors", []),
+                        "_metadata": extraction_result.get("metadata", {})
+                    }
+                    results.append(HuntingResult(
+                        url=url, 
+                        data=enhanced_data, 
+                        relevance_score=relevance
+                    ))
+            else:
+                # Complete failure - log but don't include in results
+                if extraction_result:
+                    self.logger.warning(f"Extraction failed for {url}: {extraction_result.get('message', 'Unknown error')}")
+                
+        return results
+
+    def _calculate_relevance(self, data: Union[Dict[str, Any], List[Dict[str, Any]]], intent: HuntingIntent) -> float:
+        """
+        Calculate advanced relevance score using multiple factors:
+        1. Keyword matching
+        2. Entity matching  
+        3. Content quality indicators
+        4. Freshness (if date available)
+        5. Content completeness
+        """
+        scores = {
+            "keyword_match": 0.0,
+            "entity_match": 0.0,
+            "content_quality": 0.0,
+            "freshness": 0.0,
+            "completeness": 0.0
+        }
+        
+        # Extract text content for analysis
+        text_content = self._extract_text_for_analysis(data)
+        
+        # 1. Keyword matching (enhanced with position weighting)
+        scores["keyword_match"] = self._calculate_keyword_relevance(text_content, intent.keywords)
+        
+        # 2. Entity matching
+        scores["entity_match"] = self._calculate_entity_relevance(text_content, intent.entities)
+        
+        # 3. Content quality assessment
+        scores["content_quality"] = self._assess_content_quality(data, text_content)
+        
+        # 4. Freshness score (newer content gets higher score)
+        scores["freshness"] = self._calculate_freshness_score(data)
+        
+        # 5. Content completeness (how many expected fields are filled)
+        scores["completeness"] = self._calculate_completeness_score(data, intent.output_schema)
+        
+        # Weighted combination based on content category
+        weights = self._get_scoring_weights(intent.content_category)
+        final_score = sum(scores[k] * weights[k] for k in scores)
+        
+        return min(1.0, final_score)
+    
+    def _extract_text_for_analysis(self, data: Union[Dict, List]) -> str:
+        """Extract all text content from data for relevance analysis."""
+        if isinstance(data, list):
+            all_values = []
+            for item in data:
+                if isinstance(item, dict):
+                    all_values.extend(item.values())
+            return " ".join(str(v) for v in all_values).lower()
+        elif isinstance(data, dict):
+            # Prioritize certain fields for relevance
+            important_fields = ["title", "summary", "description", "full_content"]
+            text_parts = []
+            
+            # Add important fields first (with higher weight)
+            for field in important_fields:
+                if field in data and data[field]:
+                    text_parts.append(str(data[field]))
+            
+            # Add other text fields
+            for key, value in data.items():
+                if key not in important_fields and isinstance(value, str):
+                    text_parts.append(value)
+                    
+            return " ".join(text_parts).lower()
+        else:
+            return str(data).lower()
+    
+    def _calculate_keyword_relevance(self, text: str, keywords: List[str]) -> float:
+        """Calculate keyword matching score with position and frequency weighting."""
+        if not keywords or not text:
+            return 0.0
+            
+        score = 0.0
+        text_words = text.split()
+        total_words = len(text_words)
+        
+        for keyword in keywords:
+            keyword_lower = keyword.lower()
+            
+            # Exact phrase matching (higher weight)
+            if keyword_lower in text:
+                score += 0.3
+                
+            # Individual word matching
+            keyword_words = keyword_lower.split()
+            matches = sum(1 for word in keyword_words if word in text_words)
+            if keyword_words:
+                word_match_ratio = matches / len(keyword_words)
+                score += word_match_ratio * 0.2
+                
+        return min(1.0, score)
+    
+    def _calculate_entity_relevance(self, text: str, entities: List[str]) -> float:
+        """Calculate entity matching score."""
+        if not entities or not text:
+            return 0.0
+            
+        score = 0.0
+        for entity in entities:
+            if entity.lower() in text:
+                score += 0.4  # Higher weight for entity matches
+                
+        return min(1.0, score)
+    
+    def _assess_content_quality(self, data: Union[Dict, List], text: str) -> float:
+        """Assess content quality based on various indicators."""
+        quality_score = 0.0
+        
+        # Convert list to dict if needed
+        if isinstance(data, list):
+            if not data:
+                return 0.0
+            # Use first item if it's a list of dicts
+            data = data[0] if isinstance(data[0], dict) else {}
+        elif not isinstance(data, dict):
+            return 0.0
+        
+        # Text length (optimal range)
+        text_length = len(text.split())
+        if 50 <= text_length <= 2000:  # Sweet spot for quality content
+            quality_score += 0.3
+        elif text_length > 20:  # At least some content
+            quality_score += 0.1
+            
+        # Presence of key fields
+        quality_indicators = ["title", "author", "publication_date", "summary"]
+        filled_indicators = sum(1 for field in quality_indicators if data.get(field))
+        quality_score += (filled_indicators / len(quality_indicators)) * 0.4
+        
+        # Structured content indicators
+        if data.get("image_urls") and isinstance(data["image_urls"], list):
+            quality_score += 0.1
+            
+        # Language quality (simple heuristic)
+        if text and self._has_readable_text(text):
+            quality_score += 0.2
+            
+        return min(1.0, quality_score)
+    
+    def _has_readable_text(self, text: str) -> bool:
+        """Simple heuristic to check if text appears to be readable."""
+        if not text or len(text) < 20:
+            return False
+            
+        # Check for reasonable word/character ratio
+        words = text.split()
+        if not words:
+            return False
+            
+        avg_word_length = sum(len(word) for word in words) / len(words)
+        return 2 <= avg_word_length <= 15  # Reasonable average word length
+    
+    def _calculate_freshness_score(self, data: Dict) -> float:
+        """Calculate freshness score based on publication date."""
+        date_fields = ["publication_date", "date_published", "date"]
+        
+        for field in date_fields:
+            if field in data and data[field]:
+                try:
+                    from datetime import datetime, timedelta
+                    # Try to parse the date (simplified - could be enhanced with dateutil)
+                    date_str = str(data[field])
+                    
+                    # Try common date formats
+                    for fmt in ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%d/%m/%Y", "%m/%d/%Y"]:
+                        try:
+                            pub_date = datetime.strptime(date_str[:10], fmt[:10])
+                            days_old = (datetime.now() - pub_date).days
+                            
+                            # Fresher content gets higher scores
+                            if days_old <= 7:
+                                return 1.0
+                            elif days_old <= 30:
+                                return 0.8
+                            elif days_old <= 90:
+                                return 0.6
+                            elif days_old <= 365:
+                                return 0.4
+                            else:
+                                return 0.2
+                        except ValueError:
+                            continue
+                except Exception:
+                    pass
+        
+        return 0.5  # Default score when no date available
+    
+    def _calculate_completeness_score(self, data: Union[Dict, List], schema: Dict) -> float:
+        """Calculate how complete the extracted data is according to the schema."""
+        if not schema.get("properties"):
+            return 1.0
+            
+        # Convert list to dict if needed
+        if isinstance(data, list):
+            if not data:
+                return 0.0
+            data = data[0] if isinstance(data[0], dict) else {}
+        elif not isinstance(data, dict):
+            return 0.0
+            
+        total_fields = len(schema["properties"])
+        filled_fields = sum(1 for field in schema["properties"] if data.get(field))
+        
+        completeness = filled_fields / total_fields if total_fields > 0 else 1.0
+        
+        # Bonus for required fields
+        required_fields = schema.get("required", [])
+        if required_fields:
+            required_filled = sum(1 for field in required_fields if data.get(field))
+            required_completeness = required_filled / len(required_fields)
+            # Weight required fields more heavily
+            completeness = (completeness * 0.7) + (required_completeness * 0.3)
+            
+        return completeness
+    
+    def _get_scoring_weights(self, content_category: str) -> Dict[str, float]:
+        """Get scoring weights based on content category."""
+        # Default weights
+        default_weights = {
+            "keyword_match": 0.25,
+            "entity_match": 0.25,
+            "content_quality": 0.25,
+            "freshness": 0.15,
+            "completeness": 0.10
+        }
+        
+        # Category-specific adjustments
+        if content_category == "news":
+            return {
+                "keyword_match": 0.20,
+                "entity_match": 0.25,
+                "content_quality": 0.20,
+                "freshness": 0.25,  # More weight on freshness for news
+                "completeness": 0.10
+            }
+        elif content_category == "product" or content_category == "e_commerce":
+            return {
+                "keyword_match": 0.30,
+                "entity_match": 0.20,
+                "content_quality": 0.30,
+                "freshness": 0.05,  # Less weight on freshness for products
+                "completeness": 0.15
+            }
+        elif content_category == "research" or content_category == "academic":
+            return {
+                "keyword_match": 0.20,
+                "entity_match": 0.30,
+                "content_quality": 0.35,  # Higher quality weight for research
+                "freshness": 0.05,
+                "completeness": 0.10
+            }
+        
+        return default_weights
+
+    def _rank_results(self, results: List[HuntingResult]) -> List[HuntingResult]:
+        """Rank the results based on their relevance score."""
+        return sorted(results, key=lambda r: r.relevance_score, reverse=True)
+
+    def _deduplicate_results(self, results: List[HuntingResult]) -> List[HuntingResult]:
+        """
+        Remove duplicate results using multiple deduplication strategies:
+        1. Canonical URL detection
+        2. Content similarity hashing
+        3. Title similarity
+        """
+        if not results:
+            return results
+            
+        seen_canonical = set()
+        seen_content_hashes = set()
+        seen_titles = set()
+        deduplicated = []
+        
+        for result in results:
+            # Handle data that might be a list or dict
+            data = result.data
+            if isinstance(data, list):
+                if not data:
+                    continue
+                data = data[0] if isinstance(data[0], dict) else {}
+            elif not isinstance(data, dict):
                 continue
                 
-            # Skip lines with only symbols or numbers
-            if re.match(r'^[\s\-_=\+\*\.#]+$', line):
-                continue
+            # Strategy 1: Check canonical URL
+            canonical = data.get("canonical_url") or data.get("url") or result.url
+            if canonical:
+                # Normalize URL (remove trailing slashes, fragments, etc.)
+                canonical_normalized = canonical.rstrip('/').split('#')[0].split('?')[0]
+                if canonical_normalized in seen_canonical:
+                    self.logger.debug(f"Skipping duplicate canonical URL: {canonical_normalized}")
+                    continue
+                seen_canonical.add(canonical_normalized)
+            
+            # Strategy 2: Content similarity check
+            content_for_hash = ""
+            if data.get("summary"):
+                content_for_hash += data["summary"] + " "
+            if data.get("title"):
+                content_for_hash += data["title"] + " "
+            if data.get("full_content"):
+                # Use first 500 chars of content for hashing to avoid memory issues
+                content_for_hash += data["full_content"][:500]
                 
-            # Skip very repetitive lines (likely formatting artifacts)
-            if len(set(line.replace(' ', ''))) < 3 and len(line) > 10:
+            if content_for_hash.strip():
+                content_hash = hash(content_for_hash.strip().lower())
+                if content_hash in seen_content_hashes:
+                    self.logger.debug(f"Skipping duplicate content for: {result.url}")
+                    continue
+                seen_content_hashes.add(content_hash)
+            
+            # Strategy 3: Title similarity (exact match for now, could be enhanced with fuzzy matching)
+            title = data.get("title", "").strip().lower()
+            if title and title in seen_titles:
+                self.logger.debug(f"Skipping duplicate title: {title}")
                 continue
-                
-            cleaned_lines.append(line)
+            if title:
+                seen_titles.add(title)
+            
+            deduplicated.append(result)
         
-        # Reconstruct text
-        text = '\n'.join(cleaned_lines)
-        
-        # Final cleanup
-        text = re.sub(r'\n{3,}', '\n\n', text)
-        text = text.strip()
-        
-        # If the text starts with a title-like pattern, clean it up
-        lines = text.split('\n', 2)
-        if len(lines) >= 2 and len(lines[0]) > 0:
-            # Remove redundant title repetition
-            if lines[0].lower() in text[len(lines[0]):].lower():
-                text = '\n'.join(lines[1:])
-        
-        return text
+        self.logger.info(f"Deduplication: {len(results)} -> {len(deduplicated)} results")
+        return deduplicated

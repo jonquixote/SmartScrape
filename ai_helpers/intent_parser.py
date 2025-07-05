@@ -143,49 +143,34 @@ class IntentParser(BaseService):
     
     def _build_intent_extraction_prompt(self, query: str, rule_result: Dict[str, Any]) -> str:
         """
-        Build a structured prompt for intent extraction.
+        Build a structured prompt for intent extraction, focusing on keywords and entities.
         
         Args:
             query: The original user query
-            rule_result: Results from rule-based extraction
+            rule_result: Results from rule-based extraction (used as a hint)
             
         Returns:
             A structured prompt for the AI model
         """
         return f"""
-        Extract structured search intent from the following user query.
+        Analyze the following user query to extract key information for a web scraping task.
         
         USER QUERY: "{query}"
         
-        RULE-BASED EXTRACTION RESULTS:
-        {json.dumps(rule_result, indent=2)}
-        
+        Your goal is to identify the core components of the user's request.
         Provide a JSON response with the following structure:
         {{
-            "target_item": "Primary object or entity user is looking for",
-            "location": {{
-                "city": "City name if specified",
-                "state": "State name if specified",
-                "zip_code": "Zip code if specified"
-            }},
-            "specific_criteria": {{
-                "key1": "value1",
-                "key2": "value2"
-            }},
-            "entity_type": "Type of entity being searched for",
-            "properties": ["property1", "property2"],
-            "keywords": ["keyword1", "keyword2"]
+            "primary_intent": "A concise summary of what the user wants to find or do.",
+            "keywords": ["list", "of", "important", "keywords", "from", "the", "query"],
+            "entities": ["list", "of", "named", "entities", "like", "people", "organizations", "or", "products"]
         }}
         
         IMPORTANT INSTRUCTIONS:
-        1. For target_item, identify the main item the user is searching for
-        2. The location object should only include specified location details
-        3. specific_criteria should contain all filtering preferences as key-value pairs
-        4. entity_type should specify the category of things being searched (e.g., "property", "product")
-        5. properties should list the attributes the user wants to see
-        6. keywords should include any additional relevant terms
+        1.  **primary_intent**: Summarize the user's goal in a short phrase.
+        2.  **keywords**: Extract the most relevant terms that would be useful for a web search. Include action words (e.g., "find", "compare"), topics, and attributes.
+        3.  **entities**: Identify specific named things. If the user mentions "Apple stock," "Apple" is the entity. If they mention "reviews for the new iPhone," "iPhone" is the entity.
         
-        Prioritize information from the rule-based extraction when available, and enhance it with your understanding.
+        Focus on extracting information that will help find the right web pages and extract the correct data.
         Return ONLY valid JSON.
         """
     
@@ -210,30 +195,32 @@ class IntentParser(BaseService):
             # Extract JSON from the response
             json_str = self._extract_json_from_text(content)
             if not json_str:
+                logger.warning("No JSON found in AI response. Using fallback.")
                 return self._create_fallback_intent(original_query, rule_result)
             
             # Parse the JSON
             intent = json.loads(json_str)
             
-            # Ensure required fields exist
-            intent["original_query"] = original_query
+            # Validate and ensure required fields exist, providing sensible defaults
+            validated_intent = {
+                "original_query": original_query,
+                "primary_intent": intent.get("primary_intent", original_query),
+                "keywords": intent.get("keywords", rule_result.get("keywords", [])),
+                "entities": intent.get("entities", rule_result.get("entities", []))
+            }
             
-            if "target_item" not in intent or not intent["target_item"]:
-                intent["target_item"] = rule_result.get("target_item") or "information"
-                
-            if "specific_criteria" not in intent:
-                intent["specific_criteria"] = {}
-                
-            if "properties" not in intent:
-                intent["properties"] = []
-                
-            if "keywords" not in intent:
-                intent["keywords"] = []
-                
-            return intent
+            # If keywords are empty, generate them from the query as a last resort
+            if not validated_intent["keywords"]:
+                validated_intent["keywords"] = re.findall(r'\b\w+\b', original_query.lower())
+
+            return validated_intent
             
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to decode JSON from AI response: {e}. Content: {content[:200]}")
+            return self._create_fallback_intent(original_query, rule_result)
         except Exception as e:
-            # Return a fallback intent if parsing fails
+            logger.error(f"An unexpected error occurred during intent processing: {e}")
+            # Return a fallback intent if any other parsing fails
             return self._create_fallback_intent(original_query, rule_result)
     
     def _extract_json_from_text(self, text: str) -> Optional[str]:
@@ -263,20 +250,19 @@ class IntentParser(BaseService):
     
     def _create_fallback_intent(self, query: str, rule_result: Dict[str, Any]) -> Dict[str, Any]:
         """Create a fallback intent when AI extraction fails."""
+        logger.info(f"Creating fallback intent for query: '{query}'")
+        # Use rule results as the primary source for the fallback
+        keywords = rule_result.get("keywords", [])
+        # If rule-based keywords are empty, generate from query
+        if not keywords:
+            keywords = re.findall(r'\b\w+\b', query.lower())
+
         fallback = {
             "original_query": query,
-            "target_item": rule_result.get("target_item", "information"),
-            "specific_criteria": rule_result.get("specific_criteria", {}),
-            "properties": rule_result.get("properties", []),
-            "keywords": rule_result.get("keywords", [])
+            "primary_intent": query, # Default to the original query
+            "keywords": keywords,
+            "entities": rule_result.get("entities", [])
         }
-        
-        if "location" in rule_result:
-            fallback["location"] = rule_result["location"]
-            
-        if "entity_type" in rule_result:
-            fallback["entity_type"] = rule_result["entity_type"]
-            
         return fallback
     
     async def parse_intent(self, query: str) -> Dict[str, Any]:

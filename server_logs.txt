@@ -1,0 +1,166 @@
+Configuration loaded for environment: development
+Registered service instance: url_service
+Registered service instance: html_service
+Registered service instance: session_manager
+Added rate limit config 'scrape_endpoint': 20 requests per 60s
+Added rate limit config 'stream_endpoint': 5 requests per 300s
+Redis not installed, Redis caching will be unavailable.
+Using fake-useragent for user agent generation
+Request fingerprinter initialized
+Session manager initialized with cookie directory: .cookies
+Request manager initialized
+Rate limiter initialized with default rate: 1.0 req/s
+Circuit breaker initialized with threshold: 5
+Cookie jar initialized with directory: .cookies
+Advanced rate limiter initialized with default rate: 1.0 req/s, max concurrent: 5
+spaCy successfully loaded with model: en_core_web_sm
+Successfully loaded spaCy model: en_core_web_sm
+ROUTES_PY_SYS_MODULES_PRE_IMPORT: --- sys.modules Pre-Import Diagnostics ---
+ROUTES_PY_SYS_MODULES_PRE_IMPORT: 'controllers' in sys.modules: True
+ROUTES_PY_SYS_MODULES_PRE_IMPORT: sys.modules['controllers'].__file__: /Users/johnny/Downloads/SmartScrape/controllers/__init__.py
+ROUTES_PY_SYS_MODULES_PRE_IMPORT: 'controllers.adaptive_scraper' in sys.modules: False
+ROUTES_PY_SYS_MODULES_PRE_IMPORT: --- End sys.modules Pre-Import Diagnostics ---
+Successfully imported search components
+SearchFormDetector initialized successfully
+APIParameterAnalyzer initialized successfully
+AJAXHandler initialized successfully
+spaCy successfully loaded with model: en_core_web_sm
+ROUTES_PY_IMMEDIATE_IMPORT_CHECK: --- AdaptiveScraper Immediate Import Diagnostics ---
+ROUTES_PY_IMMEDIATE_IMPORT_CHECK: controllers package path: ['/Users/johnny/Downloads/SmartScrape/controllers']
+ROUTES_PY_IMMEDIATE_IMPORT_CHECK: controllers.adaptive_scraper module: <module 'controllers.adaptive_scraper' from '/Users/johnny/Downloads/SmartScrape/controllers/adaptive_scraper.py'>
+ROUTES_PY_IMMEDIATE_IMPORT_CHECK: controllers.adaptive_scraper module file: /Users/johnny/Downloads/SmartScrape/controllers/adaptive_scraper.py
+ROUTES_PY_IMMEDIATE_IMPORT_CHECK: AdaptiveScraper class __module__: controllers.adaptive_scraper
+ROUTES_PY_IMMEDIATE_IMPORT_CHECK: AdaptiveScraper class __qualname__: AdaptiveScraper
+ROUTES_PY_IMMEDIATE_IMPORT_CHECK: AdaptiveScraper module file (from class): N/A
+ROUTES_PY_IMMEDIATE_IMPORT_CHECK: id(AdaptiveScraper) after import: 140492275861312
+ROUTES_PY_IMMEDIATE_IMPORT_CHECK: hasattr(AdaptiveScraper, 'process_user_request') after import: True
+ROUTES_PY_IMMEDIATE_IMPORT_CHECK: 'process_user_request' in dir(AdaptiveScraper) after import: True
+ROUTES_PY_IMMEDIATE_IMPORT_CHECK: --- End Immediate Import Diagnostics ---
+ROUTES_PY_SYS_MODULES_POST_IMPORT: --- sys.modules Post-Import Diagnostics ---
+ROUTES_PY_SYS_MODULES_POST_IMPORT: 'controllers.adaptive_scraper' in sys.modules: True
+ROUTES_PY_SYS_MODULES_POST_IMPORT: sys.modules['controllers.adaptive_scraper'].__file__: /Users/johnny/Downloads/SmartScrape/controllers/adaptive_scraper.py
+ROUTES_PY_SYS_MODULES_POST_IMPORT: hasattr(sys.modules['controllers.adaptive_scraper'].AdaptiveScraper, 'process_user_request'): True
+ROUTES_PY_SYS_MODULES_POST_IMPORT: id(sys.modules['controllers.adaptive_scraper'].AdaptiveScraper): 140492275861312
+ROUTES_PY_SYS_MODULES_POST_IMPORT: id(AdaptiveScraper) from import: 140492275861312
+ROUTES_PY_SYS_MODULES_POST_IMPORT: sys.modules['controllers.adaptive_scraper'].AdaptiveScraper is AdaptiveScraper: True
+ROUTES_PY_SYS_MODULES_POST_IMPORT: --- End sys.modules Post-Import Diagnostics ---
+AdaptiveScraper __init__ called.
+AIService not found in service registry. Attempting to create and register.
+Content processor initialized
+Initialized memory cache with max size 1000
+AI cache initialized with backend: memory
+Model selector initialized
+Rule engine initialized
+Batch processor initialized
+Initializing models with config: {}
+Total models initialized: 0, names: []
+AI service initialized with optimization components
+Registered service instance: ai_service
+AIService created and registered successfully using runtime class.
+IntentParser not found in registry. Attempting to create and register new instance.
+IntentParser service initialized
+Registered service instance: intent_parser
+New IntentParser instance created and registered using runtime class.
+Extraction framework components initialized successfully
+Using data-driven timeout settings: Default timeout settings
+Using AI service from service registry
+Registered strategy: ai_guided
+SchemaExtractor initialized with 8 strategies
+Registered strategy: multi_strategy
+Registered strategy: dom_strategy
+SearchFormDetector initialized successfully
+APIParameterAnalyzer initialized successfully
+AJAXHandler initialized successfully
+Registered strategy: form_search_engine
+Essential scraping strategies registered successfully
+SchemaExtractor initialized with 8 strategies
+Pattern analyzer registry is empty. Registering DefaultPatternAnalyzer.
+DefaultPatternAnalyzer registered in pattern registry.
+Registered built-in pipeline templates
+HTML service initialized successfully
+Registered service instance: search_term_generator
+Redis not available. User feedback storage might be in-memory or disabled if Redis was configured.
+MemoryMonitor initialized: max=1024MB, threshold=0.8
+Redis not available, caching will be disabled
+spaCy available for intelligent content analysis
+SentenceTransformers not available. Semantic similarity features will be limited.
+Medium model en_core_web_md not found, trying small model
+System monitoring error: (pid=23008)
+Loaded spaCy model: en_core_web_sm
+UniversalIntentAnalyzer initialized
+UniversalIntentAnalyzer initialized
+AISchemaGenerator initialized successfully
+AISchemaGenerator initialized
+Feedback storage type not Redis or not configured. Using default (e.g., in-memory or none).
+ResultEnhancer initialized successfully
+AISchemaGenerator initialized successfully
+ROUTES_PY_PRE_INIT_ADAPTIVE_SCRAPER: --- AdaptiveScraper Pre-Initialization Diagnostics ---
+ROUTES_PY_PRE_INIT_ADAPTIVE_SCRAPER: AdaptiveScraper module file (again): N/A
+ROUTES_PY_PRE_INIT_ADAPTIVE_SCRAPER: id(AdaptiveScraper) before init: 140492275861312
+ROUTES_PY_PRE_INIT_ADAPTIVE_SCRAPER: hasattr(AdaptiveScraper, 'process_user_request') before init: True
+ROUTES_PY_PRE_INIT_ADAPTIVE_SCRAPER: 'process_user_request' in dir(AdaptiveScraper) before init: True
+AdaptiveScraper __init__ called.
+AIService successfully retrieved from service registry.
+IntentParser retrieved from service registry and type matched.
+Extraction framework components initialized successfully
+Using data-driven timeout settings: Default timeout settings
+Using AI service from service registry
+Registered strategy: ai_guided
+SchemaExtractor initialized with 8 strategies
+Registered strategy: multi_strategy
+Registered strategy: dom_strategy
+SearchFormDetector initialized successfully
+APIParameterAnalyzer initialized successfully
+AJAXHandler initialized successfully
+Registered strategy: form_search_engine
+Essential scraping strategies registered successfully
+SchemaExtractor initialized with 8 strategies
+Registered built-in pipeline templates
+HTML service initialized successfully
+Service search_term_generator already registered. Overwriting.
+Registered service instance: search_term_generator
+ROUTES_PY_POST_INIT_ADAPTIVE_SCRAPER: --- AdaptiveScraper Post-Initialization Diagnostics ---
+ROUTES_PY_POST_INIT_ADAPTIVE_SCRAPER: adaptive_scraper instance: <controllers.adaptive_scraper.AdaptiveScraper object at 0x1233b3750>
+ROUTES_PY_POST_INIT_ADAPTIVE_SCRAPER: hasattr(adaptive_scraper, 'process_user_request') after init: True
+ROUTES_PY_POST_INIT_ADAPTIVE_SCRAPER: 'process_user_request' in dir(adaptive_scraper) after init: True
+ROUTES_PY_POST_INIT_ADAPTIVE_SCRAPER: Type of adaptive_scraper: <class 'controllers.adaptive_scraper.AdaptiveScraper'>
+ROUTES_PY_POST_INIT_ADAPTIVE_SCRAPER: adaptive_scraper.__class__.__file__: N/A
+ROUTES_PY_POST_INIT_ADAPTIVE_SCRAPER: id(adaptive_scraper.__class__): 140492275861312
+ROUTES_PY_POST_INIT_ADAPTIVE_SCRAPER: --- End Post-Initialization Diagnostics ---
+web/routes.py loaded and router configured.
+Content processor initialized
+Initialized memory cache with max size 1000
+AI cache initialized with backend: memory
+Model selector initialized
+Rule engine initialized
+Batch processor initialized
+Initializing models with config: {'models': [{'name': 'gemini-2.0-flash-lite', 'type': 'google', 'model_id': 'gemini-2.0-flash-lite', 'api_key': 'AIzaSyCKTM31kFIA0-wg0_CegXs-1TOvFu_sWd0'}], 'default_model': 'gemini-2.0-flash-lite', 'cache': {'backend': 'memory', 'default_ttl': 3600, 'enabled': True}, 'content_processor': {}, 'rule_engine': {}, 'batch_processor': {}}
+Processing model config: {'name': 'gemini-2.0-flash-lite', 'type': 'google', 'model_id': 'gemini-2.0-flash-lite', 'api_key': 'AIzaSyCKTM31kFIA0-wg0_CegXs-1TOvFu_sWd0'}
+Initialized model: gemini-2.0-flash-lite (google)
+Total models initialized: 1, names: ['gemini-2.0-flash-lite']
+AI service initialized with optimization components
+Service ai_service already registered. Overwriting.
+Registered service instance: ai_service
+[2m2025-06-27T10:29:01.433458Z[0m [[32m[1minfo     [0m] [1mRate limiting enabled with limit of 100 requests per minute[0m [[0m[1m[34mapp[0m][0m
+[2m2025-06-27T10:29:01.435690Z[0m [[32m[1minfo     [0m] [1mStatic files mounted from /Users/johnny/Downloads/SmartScrape/web/static[0m [[0m[1m[34mapp[0m][0m
+Starting SmartScrape v2.0.0...
+AI Service initialized with model: gemini-2.0-flash-lite
+AI Intent Parsing: Enabled
+Server running at http://0.0.0.0:5000
+INFO:     Started server process [23317]
+INFO:     Waiting for application startup.
+[2m2025-06-27T10:29:01.544420Z[0m [[32m[1minfo     [0m] [1mInitializing services on startup...[0m [[0m[1m[34mapp[0m][0m
+[2m2025-06-27T10:29:01.545425Z[0m [[32m[1minfo     [0m] [1mModel discovery service started[0m [[0m[1m[34mapp[0m][0m
+[2m2025-06-27T10:29:01.545535Z[0m [[32m[1minfo     [0m] [1mAll services initialized successfully[0m [[0m[1m[34mapp[0m][0m
+Starting automated model discovery service
+Starting model discovery cycle
+INFO:     Application startup complete.
+ERROR:    [Errno 48] error while attempting to bind on address ('0.0.0.0', 5000): [errno 48] address already in use
+INFO:     Waiting for application shutdown.
+[2m2025-06-27T10:29:01.547484Z[0m [[32m[1minfo     [0m] [1mShutting down services...     [0m [[0m[1m[34mapp[0m][0m
+Stopped automated model discovery
+[2m2025-06-27T10:29:01.547785Z[0m [[32m[1minfo     [0m] [1mAll services shut down successfully[0m [[0m[1m[34mapp[0m][0m
+INFO:     Application shutdown complete.
+Error during metrics cleanup: sys.meta_path is None, Python is likely shutting down
+Error during metrics cleanup: sys.meta_path is None, Python is likely shutting down
+Error during metrics cleanup: sys.meta_path is None, Python is likely shutting down

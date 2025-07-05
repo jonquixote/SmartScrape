@@ -24,6 +24,11 @@ from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_
 from core.service_registry import ServiceRegistry
 from controllers import global_registry
 
+# Intelligence imports for universal scraping
+from intelligence.universal_hunter import UniversalHunter, HuntingIntent
+from components.ai_schema_generator import AISchemaGenerator
+from components.universal_intent_analyzer import UniversalIntentAnalyzer
+
 # Rate limiting imports
 from utils.advanced_rate_limiter import AdvancedRateLimiter, LimitType, RateLimitConfig
 from functools import wraps
@@ -130,6 +135,11 @@ class IntelligentScrapeRequest(BaseModel):
     query: str
     start_url: Optional[str] = None
     options: Dict[str, Any] = {}
+    output_schema: Optional[Dict[str, Any]] = None # New: User-defined output schema
+    # Result count preferences
+    max_results: Optional[int] = None  # Maximum results user wants
+    min_results: Optional[int] = None  # Minimum results user wants
+    target_results: Optional[int] = None  # Preferred number of results
 
 # Log sys.modules before importing AdaptiveScraper
 logger.info(f"ROUTES_PY_SYS_MODULES_PRE_IMPORT: --- sys.modules Pre-Import Diagnostics ---")
@@ -289,6 +299,36 @@ SCRAPE_DURATION = Histogram('scrape_duration_seconds', 'Time spent scraping site
 jobs = {}
 
 router = APIRouter()
+
+# Initialize global intelligence components
+# These will be used by the intelligent scraping endpoints
+universal_hunter = None
+intent_parser = None 
+ai_schema_generator = None
+
+def initialize_intelligence_components():
+    """Initialize intelligence components on first use"""
+    global universal_hunter, intent_parser, ai_schema_generator
+    
+    if universal_hunter is None:
+        # Get AI service from service registry
+        ai_service = ServiceRegistry.get('ai_service')
+        if not ai_service:
+            # Create AI service if not available
+            from core.ai_service import AIService
+            ai_service = AIService()
+            ServiceRegistry.register('ai_service', ai_service)
+        
+        # Initialize UniversalHunter
+        universal_hunter = UniversalHunter(ai_service_client=ai_service)
+        
+        # Initialize intent parser
+        intent_parser = UniversalIntentAnalyzer()
+        
+        # Initialize AI schema generator
+        ai_schema_generator = AISchemaGenerator(intent_analyzer=intent_parser)
+        
+        logger.info("Intelligence components initialized successfully")
 
 # Include fixed routes for non-recursive scraping
 from web.fixed_routes import fixed_router
@@ -1351,14 +1391,23 @@ async def scrape_intelligent(request: Request, request_data: IntelligentScrapeRe
             logger.error(f"Error getting detailed info for adaptive_scraper: {e_detail}")
         raise HTTPException(status_code=500, detail="Internal server error: Scraper not configured correctly.")
 
-    # Use the global adaptive_scraper instance
+    # Prepare options with result count preferences
+    enhanced_options = request_data.options.copy()
+    if request_data.max_results is not None:
+        enhanced_options['max_results'] = request_data.max_results
+    if request_data.min_results is not None:
+        enhanced_options['min_results'] = request_data.min_results
+    if request_data.target_results is not None:
+        enhanced_options['target_results'] = request_data.target_results
+
+    # Use the global universal_hunter, intent_parser, and ai_schema_generator instances
     background_tasks.add_task(
         process_intelligent_scrape_task,
         job_id,
-        adaptive_scraper,
         request_data.query, 
         request_data.start_url, 
-        request_data.options
+        enhanced_options,
+        request_data.output_schema # Pass the user-provided schema
     )
     
     return {"job_id": job_id, "status": "pending_intelligent_analysis", "message": "Intelligent scrape job accepted and is being processed."}
@@ -1627,36 +1676,66 @@ async def get_models_by_provider(provider: str):
         logger.error(f"Error getting models for provider {provider}: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting models: {str(e)}")
 
-async def process_intelligent_scrape_task(job_id: str, scraper, query: str, start_url: Optional[str], options: Dict[str, Any]):
-    """Background task to process intelligent scrape requests"""
+async def process_intelligent_scrape_task(job_id: str, query: str, start_url: Optional[str], options: Dict[str, Any], user_output_schema: Optional[Dict[str, Any]]):
+    """Background task to process intelligent scrape requests using UniversalHunter."""
     import json
+    from intelligence.universal_hunter import HuntingIntent  # Import here to ensure availability
     
     try:
         logger.info(f"Starting intelligent scrape task for job {job_id}")
         jobs[job_id]["status"] = "processing"
         logger.info(f"Job {job_id} status updated to processing")
+
+        # Access global instances
+        global universal_hunter, intent_parser, ai_schema_generator
         
-        # Prepare options with start_url if provided
-        scrape_options = options.copy()
-        if start_url:
-            scrape_options["start_url"] = start_url
-            
-        # Call the process_user_request method with correct parameters
-        result = await scraper.process_user_request(
-            user_query=query,
-            session_id=job_id,  # Use job_id as session_id
-            options=scrape_options
+        # Initialize components if not already done
+        initialize_intelligence_components()
+        
+        # Determine the output schema
+        output_schema = user_output_schema
+        if not output_schema:
+            logger.info(f"No output schema provided for job {job_id}. Generating one based on query.")
+            # Generate a default schema based on the query
+            # A simple sample data can guide the AI to create a general content schema
+            generated_schema_name = f"dynamic_scrape_schema_{job_id}"
+            output_schema = await ai_schema_generator.generate_schema(
+                sample_data={"query": query, "expected_content": "main article content, title, summary"},
+                schema_name=generated_schema_name,
+                strict_mode=False # Allow flexibility for dynamic schemas
+            )
+            logger.info(f"Generated schema for job {job_id}: {output_schema}")
+        
+        # Parse the user's intent to extract keywords and entities
+        parsed_intent = await intent_parser.parse_query(query)
+        
+        # Import HuntingIntent right before use to ensure availability
+        from intelligence.universal_hunter import HuntingIntent
+        
+        # Create a HuntingIntent
+        intent = HuntingIntent(
+            query=query,
+            output_schema=output_schema,
+            keywords=parsed_intent.get("keywords", []),
+            entities=parsed_intent.get("entities", [])
         )
+
+        # Determine max_targets from options
+        max_targets = options.get('max_results', 5) # Default to 5 if not specified
+
+        # Run the hunt using UniversalHunter
+        hunting_results = await universal_hunter.hunt(intent, max_targets=max_targets)
         
+        # Extract the data from HuntingResult objects
+        extracted_data = [result.data for result in hunting_results]
+
         # Ensure result is JSON serializable to prevent RecursionError
         try:
-            # Test serialization
-            json.dumps(result)
-            serializable_result = result
+            json.dumps(extracted_data)
+            serializable_result = extracted_data
         except (TypeError, ValueError) as e:
             logger.warning(f"Result contains non-serializable data: {e}")
-            # Use safe serialization
-            serializable_result = safe_serialize(result)
+            serializable_result = safe_serialize(extracted_data)
         
         # Update job status with results
         jobs[job_id]["status"] = "completed"
@@ -1667,7 +1746,7 @@ async def process_intelligent_scrape_task(job_id: str, scraper, query: str, star
         logger.info(f"Job {job_id} final status keys: {list(jobs[job_id].keys())}")
         
     except Exception as e:
-        logger.error(f"Error in intelligent scrape task for job {job_id}: {e}")
+        logger.error(f"Error in intelligent scrape task for job {job_id}: {e}", exc_info=True)
         jobs[job_id]["status"] = "failed"
         jobs[job_id]["error"] = str(e)
         jobs[job_id]["failed_at"] = datetime.now().isoformat()

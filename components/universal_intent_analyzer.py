@@ -27,6 +27,9 @@ from config import (
 from ai_helpers.intent_parser import IntentParser
 from ai_helpers.rule_based_extractor import RuleBasedExtractor, extract_intent
 
+# Import semantic analyzer for enhanced analysis
+from intelligence.semantic_analyzer import semantic_analyzer, SemanticAnalyzer
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("UniversalIntentAnalyzer")
@@ -79,6 +82,9 @@ class UniversalIntentAnalyzer:
         self.intent_parser = IntentParser()
         self.rule_extractor = RuleBasedExtractor()
         
+        # Initialize semantic analyzer
+        self.semantic_analyzer = semantic_analyzer
+        
         # Load intent patterns for semantic matching
         self.intent_patterns = self._load_intent_patterns()
         
@@ -92,9 +98,69 @@ class UniversalIntentAnalyzer:
         Load predefined intent patterns for semantic matching.
         
         Returns:
-            Dictionary of intent patterns categorized by type
+            Dictionary of intent patterns categorized by content type
         """
         patterns = {
+            "news": [
+                {
+                    "pattern": "latest news about topic",
+                    "template": {"content_type": "NEWS_ARTICLES", "temporal": "latest"},
+                    "keywords": ["news", "latest", "updates", "breaking", "recent", "article", "story", "report"],
+                    "indicators": ["latest", "breaking", "recent", "new", "current", "today", "yesterday"]
+                },
+                {
+                    "pattern": "breaking news topic",
+                    "template": {"content_type": "NEWS_ARTICLES", "temporal": "breaking"},
+                    "keywords": ["breaking", "urgent", "alert", "developing", "just in"],
+                    "indicators": ["breaking", "urgent", "alert", "developing"]
+                }
+            ],
+            "product": [
+                {
+                    "pattern": "product price and specs",
+                    "template": {"content_type": "PRODUCT_INFORMATION", "data_focus": "specs_pricing"},
+                    "keywords": ["price", "cost", "specs", "specifications", "features", "buy", "purchase"],
+                    "indicators": ["price", "cost", "$", "buy", "purchase", "specs", "features"]
+                },
+                {
+                    "pattern": "product reviews and ratings",
+                    "template": {"content_type": "REVIEWS_RATINGS", "data_focus": "user_feedback"},
+                    "keywords": ["reviews", "rating", "stars", "feedback", "opinion", "experience"],
+                    "indicators": ["review", "rating", "stars", "feedback", "opinion"]
+                }
+            ],
+            "jobs": [
+                {
+                    "pattern": "job opportunities in location",
+                    "template": {"content_type": "JOB_LISTINGS", "location_required": True},
+                    "keywords": ["jobs", "careers", "employment", "hiring", "openings", "positions"],
+                    "indicators": ["jobs", "careers", "hiring", "employment", "work", "position"]
+                }
+            ],
+            "financial": [
+                {
+                    "pattern": "stock price and market data",
+                    "template": {"content_type": "FINANCIAL_DATA", "data_focus": "market"},
+                    "keywords": ["stock", "price", "market", "trading", "shares", "investment"],
+                    "indicators": ["stock", "price", "market", "trading", "shares", "$"]
+                }
+            ],
+            "contact": [
+                {
+                    "pattern": "contact information and location",
+                    "template": {"content_type": "CONTACT_INFORMATION", "data_focus": "location_contact"},
+                    "keywords": ["contact", "phone", "address", "location", "hours", "email"],
+                    "indicators": ["contact", "phone", "address", "location", "hours", "email"]
+                }
+            ],
+            "events": [
+                {
+                    "pattern": "upcoming events and schedules",
+                    "template": {"content_type": "EVENT_LISTINGS", "temporal": "upcoming"},
+                    "keywords": ["events", "calendar", "schedule", "meeting", "conference", "when"],
+                    "indicators": ["event", "calendar", "schedule", "when", "date", "time"]
+                }
+            ],
             "search": [
                 {
                     "pattern": "find products under price",
@@ -175,6 +241,9 @@ class UniversalIntentAnalyzer:
             
         rule_intent = extract_intent(query)  # Use standalone function instead of method
         
+        # ENHANCED: Use semantic analyzer for intent semantics
+        semantic_intent = self.semantic_analyzer.analyze_intent_semantics(query)
+        
         # Enhance with spaCy analysis if available
         spacy_analysis = self._analyze_with_spacy(query) if self.nlp else {}
         
@@ -183,14 +252,30 @@ class UniversalIntentAnalyzer:
         
         # Combine all analyses
         enhanced_intent = self._combine_analyses(
-            query, ai_intent, rule_intent, spacy_analysis, semantic_matches
+            query, ai_intent, rule_intent, spacy_analysis, semantic_matches, semantic_intent
         )
+        
+        # ENHANCED: Add semantic insights from our analyzer
+        enhanced_intent["semantic_analysis"] = {
+            "content_type": semantic_intent.content_type,
+            "semantic_keywords": semantic_intent.semantic_keywords,
+            "related_concepts": semantic_intent.related_concepts,
+            "confidence": semantic_intent.confidence
+        }
+        
+        # Generate enhanced queries for better URL discovery
+        enhanced_intent["enhanced_queries"] = self.semantic_analyzer.enhance_query_with_semantics(query)
         
         # Add semantic scores and URL prioritization data
         enhanced_intent["semantic_scores"] = self._calculate_semantic_scores(enhanced_intent)
         enhanced_intent["url_priorities"] = self._generate_url_priorities(enhanced_intent)
         
-        logger.info(f"Intent analysis complete. Entity type: {enhanced_intent.get('entity_type', 'unknown')}")
+        # Add content-type classification
+        enhanced_intent["content_type"] = self._classify_content_type(query, enhanced_intent)
+        enhanced_intent["temporal_context"] = self._analyze_temporal_context(query)
+        enhanced_intent["specificity_level"] = self._analyze_specificity(query, enhanced_intent)
+        
+        logger.info(f"Intent analysis complete. Content type: {enhanced_intent.get('content_type', 'unknown')}, Entity type: {enhanced_intent.get('entity_type', 'unknown')}")
         return enhanced_intent
 
     def _analyze_with_spacy(self, query: str) -> Dict[str, Any]:
@@ -275,25 +360,35 @@ class UniversalIntentAnalyzer:
             List of matched patterns with similarity scores
         """
         matches = []
-        query_keywords = set(query.lower().split())
+        query_lower = query.lower()
+        query_keywords = set(query_lower.split())
         
         for category, patterns in self.intent_patterns.items():
             for pattern in patterns:
-                # Simple keyword-based similarity (alternative to FAISS)
+                # Enhanced similarity calculation
                 pattern_keywords = set(pattern["keywords"])
+                pattern_indicators = set(pattern.get("indicators", []))
                 
-                # Calculate Jaccard similarity
-                intersection = len(query_keywords.intersection(pattern_keywords))
-                union = len(query_keywords.union(pattern_keywords))
-                similarity = intersection / union if union > 0 else 0
+                # Calculate keyword similarity
+                keyword_intersection = len(query_keywords.intersection(pattern_keywords))
+                keyword_union = len(query_keywords.union(pattern_keywords))
+                keyword_similarity = keyword_intersection / keyword_union if keyword_union > 0 else 0
                 
-                if similarity > 0.1:  # Threshold for matching
+                # Calculate indicator similarity (direct text matches)
+                indicator_matches = sum(1 for indicator in pattern_indicators if indicator in query_lower)
+                indicator_similarity = indicator_matches / max(len(pattern_indicators), 1)
+                
+                # Combined similarity with indicator boost
+                total_similarity = (keyword_similarity * 0.6) + (indicator_similarity * 0.4)
+                
+                if total_similarity > 0.1:  # Threshold for matching
                     matches.append({
                         "category": category,
                         "pattern": pattern["pattern"],
                         "template": pattern["template"],
-                        "similarity": similarity,
-                        "matched_keywords": list(query_keywords.intersection(pattern_keywords))
+                        "similarity": total_similarity,
+                        "matched_keywords": list(query_keywords.intersection(pattern_keywords)),
+                        "matched_indicators": [ind for ind in pattern_indicators if ind in query_lower]
                     })
         
         # Sort by similarity
@@ -305,7 +400,8 @@ class UniversalIntentAnalyzer:
                          ai_intent: Dict[str, Any],
                          rule_intent: Dict[str, Any],
                          spacy_analysis: Dict[str, Any],
-                         semantic_matches: List[Dict[str, Any]]) -> Dict[str, Any]:
+                         semantic_matches: List[Dict[str, Any]],
+                         semantic_intent) -> Dict[str, Any]:
         """
         Combine all analysis results into a unified intent.
         
@@ -315,6 +411,7 @@ class UniversalIntentAnalyzer:
             rule_intent: Rule-based intent analysis  
             spacy_analysis: spaCy linguistic analysis
             semantic_matches: Semantic pattern matches
+            semantic_intent: Semantic intent analysis
             
         Returns:
             Combined intent analysis
@@ -345,6 +442,17 @@ class UniversalIntentAnalyzer:
                     combined["requires_location"] = True
                 if template.get("topic_required"):
                     combined["requires_topic"] = True
+        
+        # ENHANCED: Add semantic intent insights
+        if semantic_intent:
+            combined["semantic_content_type"] = semantic_intent.content_type
+            combined["semantic_keywords"] = semantic_intent.semantic_keywords
+            combined["related_concepts"] = semantic_intent.related_concepts
+            combined["semantic_confidence"] = semantic_intent.confidence
+            
+            # Use semantic content type to enhance existing classification
+            if not combined.get("content_type") and semantic_intent.content_type != 'general':
+                combined["content_type"] = semantic_intent.content_type.upper()
         
         # Enhance keywords with all sources
         all_keywords = set(combined.get("keywords", []))
@@ -655,30 +763,244 @@ class UniversalIntentAnalyzer:
         
         return list(set(data_types))  # Remove duplicates
 
-# Factory function for easy instantiation
-def create_universal_intent_analyzer(**kwargs) -> UniversalIntentAnalyzer:
-    """
-    Factory function to create UniversalIntentAnalyzer instance.
-    
-    Args:
-        **kwargs: Configuration options
+    def _classify_content_type(self, query: str, intent_analysis: Dict[str, Any]) -> str:
+        """
+        Classify the query into specific content types for targeted extraction.
         
-    Returns:
-        Configured UniversalIntentAnalyzer instance
-    """
-    return UniversalIntentAnalyzer(**kwargs)
-
-# Singleton instance for global use
-_analyzer_instance = None
-
-def get_universal_intent_analyzer() -> UniversalIntentAnalyzer:
-    """
-    Get singleton instance of UniversalIntentAnalyzer.
+        Args:
+            query: Original query string
+            intent_analysis: Current intent analysis results
+            
+        Returns:
+            Content type classification
+        """
+        query_lower = query.lower()
+        
+        # News content patterns
+        news_patterns = [
+            r'\b(news|latest|recent|breaking|update|announcement|report)\b',
+            r'\b(article|story|headline|journalism|press release)\b',
+            r'\b(today|yesterday|this week|current)\b.*\b(news|update)\b'
+        ]
+        
+        # Product information patterns  
+        product_patterns = [
+            r'\b(price|cost|buy|purchase|sale|deal|offer)\b',
+            r'\b(specs|specification|feature|model|version)\b',
+            r'\b(available|availability|in stock|out of stock)\b',
+            r'\b(compare|comparison|vs|versus)\b.*\b(product|model)\b'
+        ]
+        
+        # Job listing patterns
+        job_patterns = [
+            r'\b(job|jobs|career|careers|hiring|employment)\b',
+            r'\b(opening|openings|position|vacancy|vacancies)\b',
+            r'\b(apply|application|resume|interview)\b',
+            r'\b(salary|wage|compensation|benefits)\b'
+        ]
+        
+        # Review patterns
+        review_patterns = [
+            r'\b(review|reviews|rating|ratings|feedback)\b',
+            r'\b(opinion|experience|testimonial)\b',
+            r'\b(recommend|recommendation|worth it)\b',
+            r'\b(pros and cons|good|bad|quality)\b'
+        ]
+        
+        # Financial data patterns
+        financial_patterns = [
+            r'\b(stock|share|stocks|shares|market)\b',
+            r'\b(price|value|worth|valuation)\b.*\b(stock|share)\b',
+            r'\b(earnings|revenue|profit|financial|quarterly)\b',
+            r'\b(investor|investment|trading|ticker)\b'
+        ]
+        
+        # Contact information patterns
+        contact_patterns = [
+            r'\b(contact|phone|email|address|location)\b',
+            r'\b(hours|open|closed|schedule)\b',
+            r'\b(support|customer service|help)\b',
+            r'\b(office|headquarters|branch)\b'
+        ]
+        
+        # Event patterns
+        event_patterns = [
+            r'\b(event|events|calendar|schedule)\b',
+            r'\b(conference|meeting|webinar|seminar)\b',
+            r'\b(when|date|time|location)\b.*\b(event|meeting)\b',
+            r'\b(ticket|registration|rsvp)\b'
+        ]
+        
+        # Check patterns in order of specificity
+        for pattern in news_patterns:
+            if re.search(pattern, query_lower):
+                return "NEWS_ARTICLES"
+        
+        for pattern in financial_patterns:
+            if re.search(pattern, query_lower):
+                return "FINANCIAL_DATA"
+                
+        for pattern in job_patterns:
+            if re.search(pattern, query_lower):
+                return "JOB_LISTINGS"
+                
+        for pattern in product_patterns:
+            if re.search(pattern, query_lower):
+                return "PRODUCT_INFORMATION"
+                
+        for pattern in review_patterns:
+            if re.search(pattern, query_lower):
+                return "REVIEWS_RATINGS"
+                
+        for pattern in contact_patterns:
+            if re.search(pattern, query_lower):
+                return "CONTACT_INFORMATION"
+                
+        for pattern in event_patterns:
+            if re.search(pattern, query_lower):
+                return "EVENT_LISTINGS"
+        
+        # Use spaCy entities for additional context
+        if self.nlp and intent_analysis.get('spacy_entities'):
+            entities = intent_analysis['spacy_entities']
+            entity_labels = [ent.get('label', '') for ent in entities]
+            
+            if 'MONEY' in entity_labels or 'PERCENT' in entity_labels:
+                if any(word in query_lower for word in ['stock', 'share', 'market', 'trading']):
+                    return "FINANCIAL_DATA"
+                else:
+                    return "PRODUCT_INFORMATION"
+                    
+            if 'ORG' in entity_labels and any(word in query_lower for word in ['job', 'career', 'work']):
+                return "JOB_LISTINGS"
+                
+            if 'DATE' in entity_labels or 'TIME' in entity_labels:
+                if any(word in query_lower for word in ['event', 'meeting', 'conference']):
+                    return "EVENT_LISTINGS"
+                elif any(word in query_lower for word in ['news', 'update', 'latest']):
+                    return "NEWS_ARTICLES"
+        
+        # Default to general information
+        return "INFORMATION"
     
-    Returns:
-        UniversalIntentAnalyzer instance
-    """
-    global _analyzer_instance
-    if _analyzer_instance is None:
-        _analyzer_instance = UniversalIntentAnalyzer()
-    return _analyzer_instance
+    def _analyze_temporal_context(self, query: str) -> Dict[str, Any]:
+        """
+        Analyze temporal context of the query.
+        
+        Args:
+            query: Query string to analyze
+            
+        Returns:
+            Temporal context information
+        """
+        query_lower = query.lower()
+        
+        # Temporal preference patterns
+        latest_patterns = [
+            r'\b(latest|newest|recent|current|new)\b',
+            r'\b(today|this week|this month|now)\b',
+            r'\b(updated|fresh|breaking)\b'
+        ]
+        
+        historical_patterns = [
+            r'\b(history|historical|past|archive)\b',
+            r'\b(last year|previous|old|former)\b',
+            r'\b(since|from|until|before)\b'
+        ]
+        
+        specific_time_patterns = [
+            r'\b(january|february|march|april|may|june|july|august|september|october|november|december)\b',
+            r'\b(2020|2021|2022|2023|2024|2025)\b',
+            r'\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b'
+        ]
+        
+        temporal_context = {
+            "preference": "any",
+            "urgency": "normal",
+            "time_frame": "open"
+        }
+        
+        # Check for latest/recent preferences
+        for pattern in latest_patterns:
+            if re.search(pattern, query_lower):
+                temporal_context["preference"] = "latest"
+                temporal_context["urgency"] = "high"
+                break
+        
+        # Check for historical preferences  
+        for pattern in historical_patterns:
+            if re.search(pattern, query_lower):
+                temporal_context["preference"] = "historical"
+                temporal_context["time_frame"] = "past"
+                break
+                
+        # Check for specific time references
+        for pattern in specific_time_patterns:
+            if re.search(pattern, query_lower):
+                temporal_context["time_frame"] = "specific"
+                break
+        
+        return temporal_context
+    
+    def _analyze_specificity(self, query: str, intent_analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Analyze the specificity level of the query.
+        
+        Args:
+            query: Query string to analyze
+            intent_analysis: Current intent analysis
+            
+        Returns:
+            Specificity analysis
+        """
+        query_lower = query.lower()
+        word_count = len(query.split())
+        
+        specificity = {
+            "level": "medium",
+            "scope": "broad",
+            "detail_level": "standard"
+        }
+        
+        # Determine specificity level
+        if word_count <= 2:
+            specificity["level"] = "low"
+            specificity["scope"] = "very_broad"
+        elif word_count <= 4:
+            specificity["level"] = "medium"
+            specificity["scope"] = "broad"
+        elif word_count <= 8:
+            specificity["level"] = "high" 
+            specificity["scope"] = "focused"
+        else:
+            specificity["level"] = "very_high"
+            specificity["scope"] = "very_focused"
+        
+        # Check for detail-level indicators
+        detail_patterns = [
+            r'\b(detailed|comprehensive|complete|full|in-depth)\b',
+            r'\b(everything|all|total|entire)\b'
+        ]
+        
+        summary_patterns = [
+            r'\b(summary|overview|brief|quick|short)\b',
+            r'\b(highlights|key points|main)\b'
+        ]
+        
+        for pattern in detail_patterns:
+            if re.search(pattern, query_lower):
+                specificity["detail_level"] = "detailed"
+                break
+                
+        for pattern in summary_patterns:
+            if re.search(pattern, query_lower):
+                specificity["detail_level"] = "summary"
+                break
+        
+        # Use entity count as specificity indicator
+        entities = intent_analysis.get('spacy_entities', [])
+        if len(entities) >= 3:
+            specificity["level"] = "high"
+            specificity["scope"] = "focused"
+        
+        return specificity

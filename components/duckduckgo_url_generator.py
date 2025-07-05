@@ -78,54 +78,78 @@ class DuckDuckGoURLGenerator:
         self.domain_reputation = self._init_domain_reputation()
         
         # Search result filters
-        self.excluded_domains = {
-            'google.com', 'bing.com', 'yahoo.com', 'search.yahoo.com',
-            'duckduckgo.com', 'baidu.com', 'yandex.com', 'ask.com'
-        }
+        self.exclude_domains = self.config.get('exclude_domains', [])
+        
+        # Initialize fallback URL discovery system
+        self.fallback_urls = self._init_fallback_urls()
+        self.domain_specific_endpoints = self._init_domain_endpoints()
+        
+        # Rate limiting detection
+        self.consecutive_empty_results = 0
+        self.rate_limit_threshold = 3  # After 3 empty results, assume rate limiting
         
         self.logger.info("DuckDuckGoURLGenerator initialized successfully")
     
-    def generate_urls(self, query: str, base_url: str = None, 
-                     intent_analysis: Dict = None, max_urls: int = None) -> List[URLScore]:
+    def generate_urls(self, query: str, max_urls: int = 10, intent_analysis: Dict = None) -> List[URLScore]:
         """
-        Generate URLs using DuckDuckGo search and intelligent ranking
+        Generate URLs using DuckDuckGo search with intelligent fallback strategies
         
         Args:
-            query: User search query
-            base_url: Optional base URL to constrain search (not used in DDG search)
-            intent_analysis: Results from UniversalIntentAnalyzer (optional)
-            max_urls: Maximum number of URLs to generate
+            query: Search query
+            max_urls: Maximum number of URLs to return
+            intent_analysis: Intent analysis results (optional)
             
         Returns:
-            List of scored URLs ordered by relevance
+            List of URLScore objects
         """
-        max_urls = max_urls or CRAWL4AI_MAX_PAGES
-        self.logger.info(f"Generating URLs using DuckDuckGo search for query: '{query}'")
+        self.logger.info(f"Starting URL generation for query: '{query}' (max: {max_urls})")
         
         try:
-            # Get search results from DuckDuckGo
-            search_results = self._search_duckduckgo(query, max_results=max_urls * 2)
+            # First attempt: Regular DuckDuckGo search
+            search_results = self._search_duckduckgo(query, max_urls * 2)
             
-            # Filter out search engines and unwanted domains
+            # Check if we got empty results (possible rate limiting)
+            if not search_results:
+                self.consecutive_empty_results += 1
+                self.logger.warning(f"DuckDuckGo returned 0 results (consecutive: {self.consecutive_empty_results})")
+                
+                # If we suspect rate limiting, use fallback strategies
+                if self.consecutive_empty_results >= self.rate_limit_threshold:
+                    self.logger.warning("Rate limiting detected - activating fallback strategies")
+                    search_results = self._get_fallback_urls(query, intent_analysis, max_urls)
+            else:
+                # Reset counter on successful search
+                self.consecutive_empty_results = 0
+            
+            # If still no results, try alternative search methods
+            if not search_results:
+                self.logger.warning("Primary search failed - trying alternative methods")
+                search_results = self._get_emergency_fallback_urls(query, intent_analysis, max_urls)
+            
+            # Filter and rank results
             filtered_results = self._filter_search_results(search_results)
             
-            # Score and rank the URLs
+            # Score URLs based on relevance
             scored_urls = []
-            for i, result in enumerate(filtered_results):
-                score = self._score_search_result(result, query, intent_analysis or {}, ranking=i)
-                if score.confidence > 0.1:  # Filter out very low confidence URLs
+            for result in filtered_results:
+                score = self.validate_and_score_url(result.url, intent_analysis or {})
+                if score.relevance_score > 0:
+                    # Add additional metadata from search result
+                    score.title = getattr(result, 'title', '')
+                    score.description = getattr(result, 'body', '')
                     scored_urls.append(score)
             
-            # Sort by relevance score and limit results
+            # Sort by relevance score
             sorted_urls = sorted(scored_urls, key=lambda x: x.relevance_score, reverse=True)
             final_urls = sorted_urls[:max_urls]
             
-            self.logger.info(f"Generated {len(final_urls)} URLs from DuckDuckGo search")
+            self.logger.info(f"Generated {len(final_urls)} URLs from enhanced search (primary + fallback)")
             return final_urls
             
         except Exception as e:
-            self.logger.error(f"Error generating URLs with DuckDuckGo: {e}")
-            return []
+            self.logger.error(f"Error generating URLs with enhanced DuckDuckGo: {e}")
+            # Emergency fallback - return known good URLs
+            return self._get_emergency_fallback_urls(query, intent_analysis, max_urls)
     
     def expand_search_terms(self, query: str, intent_analysis: Dict = None) -> List[str]:
         """
@@ -178,7 +202,7 @@ class DuckDuckGoURLGenerator:
             domain = parsed.netloc.lower()
             
             # Basic validation
-            if not domain or domain in self.excluded_domains:
+            if not domain or domain in self.exclude_domains:
                 return URLScore(url, 0.0, 0.0, 0.0, 0.0, 0.0)
             
             # Domain reputation score
@@ -264,6 +288,12 @@ class DuckDuckGoURLGenerator:
         except Exception as e:
             self.logger.error(f"DuckDuckGo search failed: {e}")
         
+        # If initial search yields no results, try fallback mechanisms
+        if not results:
+            self.logger.warning("No results from DuckDuckGo, trying fallback URL discovery")
+            fallback_search_results = self._get_fallback_urls(query, {}, max_results)
+            results = fallback_search_results
+        
         self.logger.info(f"Returning {len(results)} valid URLs")
         return results
     
@@ -314,7 +344,7 @@ class DuckDuckGoURLGenerator:
                 domain = parsed.netloc.lower()
                 
                 # Skip excluded domains
-                if any(excluded in domain for excluded in self.excluded_domains):
+                if any(excluded in domain for excluded in self.exclude_domains):
                     continue
                 
                 # Skip if missing essential data
@@ -544,6 +574,340 @@ class DuckDuckGoURLGenerator:
             'tumblr.com': 0.4,
         }
 
+    def _init_fallback_urls(self) -> Dict[str, List[str]]:
+        """
+        Initialize categorized fallback URLs for when search fails
+        
+        Returns:
+            Dictionary mapping categories to lists of high-quality URLs
+        """
+        return {
+            'general': [
+                'https://www.wikipedia.org',
+                'https://www.bbc.com/news',
+                'https://www.reuters.com',
+                'https://techcrunch.com',
+                'https://www.wired.com'
+            ],
+            'technology': [
+                'https://github.com',
+                'https://stackoverflow.com',
+                'https://developer.mozilla.org',
+                'https://docs.python.org',
+                'https://www.geeksforgeeks.org',
+                'https://realpython.com',
+                'https://medium.com/topic/technology'
+            ],
+            'learning': [
+                'https://www.coursera.org',
+                'https://www.edx.org',
+                'https://www.udemy.com',
+                'https://www.w3schools.com',
+                'https://www.tutorialspoint.com'
+            ],
+            'news': [
+                'https://www.bbc.com/news',
+                'https://www.cnn.com',
+                'https://www.reuters.com',
+                'https://www.theverge.com',
+                'https://arstechnica.com'
+            ],
+            'business': [
+                'https://www.bloomberg.com',
+                'https://www.wsj.com',
+                'https://www.forbes.com',
+                'https://www.reuters.com/business',
+                'https://techcrunch.com'
+            ],
+            'research': [
+                'https://arxiv.org',
+                'https://scholar.google.com',
+                'https://www.researchgate.net',
+                'https://www.nature.com',
+                'https://www.sciencedirect.com'
+            ]
+        }
+
+    def _init_domain_endpoints(self) -> Dict[str, List[str]]:
+        """
+        Initialize domain-specific endpoints for targeted searches
+        
+        Returns:
+            Dictionary mapping domains to their useful endpoints
+        """
+        return {
+            'reddit.com': [
+                'https://www.reddit.com/search?q={}',
+                'https://www.reddit.com/r/news/search?q={}',
+                'https://www.reddit.com/r/technology/search?q={}'
+            ],
+            'youtube.com': [
+                'https://www.youtube.com/results?search_query={}',
+                'https://www.youtube.com/c/{}',
+                'https://www.youtube.com/user/{}'
+            ],
+            'github.com': [
+                'https://github.com/search?q={}',
+                'https://github.com/topics/{}',
+                'https://github.com/{}'
+            ],
+            'stackoverflow.com': [
+                'https://stackoverflow.com/search?q={}',
+                'https://stackoverflow.com/questions/tagged/{}',
+                'https://stackoverflow.com/users/{}/'
+            ],
+            'medium.com': [
+                'https://medium.com/search?q={}',
+                'https://medium.com/tag/{}',
+                'https://medium.com/@{}'
+            ]
+        }
+
+    def _get_fallback_urls(self, query: str, intent_analysis: Dict, max_urls: int) -> List[SearchResult]:
+        """
+        Generate fallback URLs when primary search fails
+        
+        Args:
+            query: Original search query
+            intent_analysis: Intent analysis results
+            max_urls: Maximum number of URLs to generate
+            
+        Returns:
+            List of SearchResult objects from fallback sources
+        """
+        self.logger.info("Generating fallback URLs due to search failure")
+        fallback_results = []
+        
+        try:
+            # Determine category from intent analysis or query
+            category = self._determine_category(query, intent_analysis)
+            self.logger.info(f"Determined category: {category}")
+            
+            # Get category-specific fallback URLs
+            category_urls = self.fallback_urls.get(category, self.fallback_urls['general'])
+            
+            # Add domain-specific searches
+            domain_urls = self._generate_domain_specific_urls(query, max_urls // 2)
+            
+            # Combine and deduplicate
+            all_urls = list(set(category_urls + domain_urls))
+            
+            # Convert to SearchResult objects
+            for i, url in enumerate(all_urls[:max_urls]):
+                result = SearchResult(
+                    title=f"Fallback result for: {query}",
+                    url=url,
+                    body=f"Fallback URL from category: {category}",
+                    ranking=i
+                )
+                fallback_results.append(result)
+                
+            self.logger.info(f"Generated {len(fallback_results)} fallback URLs")
+            
+        except Exception as e:
+            self.logger.error(f"Error generating fallback URLs: {e}")
+            
+        return fallback_results
+
+    def _get_emergency_fallback_urls(self, query: str, intent_analysis: Dict, max_urls: int) -> List[URLScore]:
+        """
+        Emergency fallback when all other methods fail
+        
+        Args:
+            query: Original search query
+            intent_analysis: Intent analysis results
+            max_urls: Maximum number of URLs to generate
+            
+        Returns:
+            List of URLScore objects for emergency fallback
+        """
+        self.logger.warning("Using emergency fallback URLs")
+        emergency_urls = []
+        
+        # Use high-reputation URLs as emergency fallback
+        high_rep_domains = [
+            'https://www.wikipedia.org',
+            'https://www.bbc.com/news',
+            'https://stackoverflow.com',
+            'https://github.com',
+            'https://www.reuters.com'
+        ]
+        
+        for i, url in enumerate(high_rep_domains[:max_urls]):
+            score = URLScore(
+                url=url,
+                relevance_score=0.3,  # Low but non-zero score
+                intent_match_score=0.3,
+                domain_reputation_score=0.9,  # High reputation for emergency fallback
+                pattern_match_score=0.2,
+                confidence=0.5
+            )
+            emergency_urls.append(score)
+            
+        self.logger.info(f"Generated {len(emergency_urls)} emergency fallback URLs")
+        return emergency_urls
+
+    def _determine_category(self, query: str, intent_analysis: Dict) -> str:
+        """
+        Determine the most appropriate category for fallback URLs
+        
+        Args:
+            query: Search query
+            intent_analysis: Intent analysis results
+            
+        Returns:
+            Category string for fallback URL selection
+        """
+        if not intent_analysis:
+            intent_analysis = {}
+            
+        # Check intent analysis for category hints
+        intent_type = intent_analysis.get('intent_type', '').lower()
+        entities = intent_analysis.get('entities', [])
+        
+        # Map intent types to categories
+        intent_mapping = {
+            'research': 'research',
+            'learning': 'learning',
+            'news': 'news',
+            'business': 'business',
+            'technology': 'technology'
+        }
+        
+        if intent_type in intent_mapping:
+            return intent_mapping[intent_type]
+            
+        # Check query keywords
+        query_lower = query.lower()
+        
+        if any(term in query_lower for term in ['python', 'code', 'programming', 'software', 'tech']):
+            return 'technology'
+        elif any(term in query_lower for term in ['news', 'breaking', 'latest', 'update']):
+            return 'news'
+        elif any(term in query_lower for term in ['learn', 'tutorial', 'course', 'education']):
+            return 'learning'
+        elif any(term in query_lower for term in ['business', 'market', 'finance', 'economy']):
+            return 'business'
+        elif any(term in query_lower for term in ['research', 'study', 'paper', 'academic']):
+            return 'research'
+        else:
+            return 'general'
+
+    def _generate_domain_specific_urls(self, query: str, max_urls: int) -> List[str]:
+        """
+        Generate URLs using domain-specific search patterns
+        
+        Args:
+            query: Search query
+            max_urls: Maximum number of URLs to generate
+            
+        Returns:
+            List of domain-specific URLs
+        """
+        domain_urls = []
+        
+        try:
+            # Extract potential usernames, topics, or search terms
+            search_terms = query.split()
+            primary_term = search_terms[0] if search_terms else query
+            
+            # Generate URLs for each domain
+            for domain, patterns in list(self.domain_specific_endpoints.items())[:3]:  # Limit domains
+                for pattern in patterns[:2]:  # Limit patterns per domain
+                    try:
+                        formatted_url = pattern.format(primary_term)
+                        if self._is_valid_real_url(formatted_url):
+                            domain_urls.append(formatted_url)
+                            if len(domain_urls) >= max_urls:
+                                break
+                    except Exception as e:
+                        self.logger.debug(f"Failed to format URL pattern {pattern}: {e}")
+                        
+                if len(domain_urls) >= max_urls:
+                    break
+                    
+        except Exception as e:
+            self.logger.error(f"Error generating domain-specific URLs: {e}")
+            
+        return domain_urls[:max_urls]
+
+    def generate_urls_enhanced(self, query: str, target_count: int = 30, **kwargs) -> List[URLScore]:
+        """
+        Enhanced URL generation with aggressive search strategies
+        
+        Args:
+            query: Search query
+            target_count: Target number of URLs to find
+            **kwargs: Additional options
+            
+        Returns:
+            List of URLScore objects
+        """
+        self.logger.info(f"Enhanced DuckDuckGo URL generation for '{query}' targeting {target_count} URLs")
+        
+        all_urls = []
+        intent_analysis = kwargs.get('intent_analysis', {})
+        
+        try:
+            # 1. Basic search
+            basic_results = self._search_duckduckgo(query, max_results=target_count // 3)
+            all_urls.extend(basic_results)
+            
+            # 2. Expand search terms
+            expanded_terms = self.expand_search_terms(query, intent_analysis)
+            
+            # 3. Search with expanded terms
+            for term in expanded_terms[1:4]:  # Use top 3 expanded terms
+                try:
+                    expanded_results = self._search_duckduckgo(term, max_results=target_count // 6)
+                    all_urls.extend(expanded_results)
+                except Exception as e:
+                    self.logger.debug(f"Failed expanded search for '{term}': {e}")
+                    continue
+            
+            # 4. Add query variations
+            variations = [
+                f"{query} news",
+                f"{query} latest",
+                f"{query} 2024",
+                f"{query} article",
+                f"{query} report"
+            ]
+            
+            for variation in variations:
+                try:
+                    var_results = self._search_duckduckgo(variation, max_results=target_count // 10)
+                    all_urls.extend(var_results)
+                except Exception as e:
+                    self.logger.debug(f"Failed variation search for '{variation}': {e}")
+                    continue
+            
+            # 5. Convert to URLScore objects and rank
+            scored_urls = []
+            for result in all_urls:
+                try:
+                    url_score = self.validate_and_score_url(result.url, intent_analysis)
+                    if url_score and url_score.is_relevant:
+                        scored_urls.append(url_score)
+                except Exception as e:
+                    self.logger.debug(f"Failed to score URL {result.url}: {e}")
+                    continue
+            
+            # 6. Remove duplicates and sort by score
+            unique_urls = {}
+            for url_score in scored_urls:
+                if url_score.url not in unique_urls or url_score.score > unique_urls[url_score.url].score:
+                    unique_urls[url_score.url] = url_score
+            
+            final_urls = sorted(unique_urls.values(), key=lambda x: x.score, reverse=True)
+            
+            self.logger.info(f"Enhanced generation found {len(final_urls)} quality URLs from {len(all_urls)} candidates")
+            return final_urls[:target_count]
+            
+        except Exception as e:
+            self.logger.error(f"Enhanced URL generation failed: {e}")
+            # Fallback to basic generation
+            return self.generate_urls(query, intent_analysis or {}, max_urls=target_count)
 
 # Compatibility function for easy integration
 def get_duckduckgo_url_generator(intent_analyzer=None, config=None) -> DuckDuckGoURLGenerator:

@@ -5,6 +5,7 @@
 import asyncio
 import os
 from datetime import datetime
+from typing import Dict, Any
 
 # FastAPI for the web framework
 from fastapi import FastAPI, Depends
@@ -31,7 +32,10 @@ from components.domain_intelligence import DomainIntelligence
 from components.pagination_handler import PaginationHandler
 from components.template_storage import TemplateStorage
 from components.search_template_integration import SearchTemplateIntegrator
-from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
+from crawl4ai import AsyncWebCrawler
+
+# Import the new UniversalHunter
+from intelligence.universal_hunter import UniversalHunter, HuntingIntent
 
 # Import our AI helpers
 from ai_helpers.intent_parser import get_intent_parser
@@ -150,6 +154,9 @@ template_storage = TemplateStorage(config.TEMPLATE_STORAGE_PATH)
 # Initialize search template integrator without crawler initially (will be set later)
 search_template_integrator = None
 
+# Initialize the UniversalHunter with the AI service
+universal_hunter = UniversalHunter(ai_service_client=ai_service)
+
 # Lifespan event handler for initializing and cleaning up services
 from contextlib import asynccontextmanager
 
@@ -261,129 +268,32 @@ app.include_router(api_router, prefix="/api")
 app.include_router(api_router)
 
 # New function to parse user intent and prepare for scraping
-async def prepare_scraping_job(user_query, url=None):
+async def prepare_scraping_job(user_query: str, output_schema: Dict[str, Any]):
     """
-    Parse user intent and prepare a scraping job with enhanced context.
-    
+    Uses the UniversalHunter to perform a scraping job.
+
     Args:
-        user_query: The user's natural language query
-        url: Optional starting URL if provided
-        
+        user_query: The user's natural language query.
+        output_schema: The desired JSON schema for the output.
+
     Returns:
-        Dictionary with job context including parsed intent
+        A list of HuntingResult objects.
     """
-    # Parse user intent using the intent parser
-    user_intent = await intent_parser.parse_query(user_query)
+    # Parse the user's intent to extract keywords and entities
+    parsed_intent = await intent_parser.parse_query(user_query)
     
-    # Initialize job context
-    job_context = {
-        "original_query": user_query,
-        "user_intent": user_intent,
-        "timestamp": datetime.now().isoformat(),
-        "job_id": f"job_{int(datetime.now().timestamp())}",
-        "start_url": url
-    }
-    
-    # If a URL is provided, enhance intent with page context
-    if url:
-        try:
-            # Fetch the page
-            page_result = await get_crawler().fetch_url(url)
-            if page_result and page_result.get("html"):
-                # Create context for AI processing
-                context = {
-                    "url": url,
-                    "query": user_query,
-                    "task_type": "intent_enhancement",
-                    "use_cache": True
-                }
-                
-                # Generate prompt for enhancing intent with page context
-                prompt = f"""
-                Analyze this webpage and enhance the user's search intent with context from the page.
-                
-                User Query: {user_query}
-                
-                Current Parsed Intent: 
-                {user_intent}
-                
-                Page URL: {url}
-                
-                HTML Sample:
-                {page_result.get("html")[:5000]}
-                
-                Enhance the intent with additional relevant information from the page that could help with extraction.
-                Return the enhanced intent as a JSON object.
-                """
-                
-                # Use the AI service to enhance the intent
-                response = await ai_service.generate_response(prompt=prompt, context=context)
-                
-                if response and "content" in response:
-                    # Extract enhanced intent from response
-                    from ai_helpers.response_parser import ResponseParser
-                    parser = ResponseParser(ai_service=ai_service)
-                    enhanced_intent = await parser.extract_structured_data(
-                        response["content"], 
-                        expected_schema=user_intent
-                    )
-                    
-                    if enhanced_intent:
-                        job_context["user_intent"] = enhanced_intent
-                
-                # Generate search parameters if needed
-                search_params_prompt = f"""
-                Based on this user intent, generate search parameters that could be used on a search form.
-                
-                User Intent:
-                {job_context["user_intent"]}
-                
-                Return a JSON object with key-value pairs representing search parameters.
-                """
-                
-                search_params_response = await ai_service.generate_response(
-                    prompt=search_params_prompt,
-                    context={"task_type": "search_params_generation", "use_cache": True}
-                )
-                
-                if search_params_response and "content" in search_params_response:
-                    parser = ResponseParser(ai_service=ai_service)
-                    search_params = await parser.extract_structured_data(
-                        search_params_response["content"],
-                        expected_schema={"type": "object"}
-                    )
-                    job_context["search_params"] = search_params
-                
-                # Generate extraction requirements
-                extraction_prompt = f"""
-                Based on this user intent, analyze what data needs to be extracted from webpages.
-                
-                User Intent:
-                {job_context["user_intent"]}
-                
-                Return a JSON object with:
-                1. "target_fields": array of fields to extract
-                2. "priority_order": relative importance of fields (1-10)
-                3. "extraction_hints": any hints for how to extract each field
-                """
-                
-                extraction_response = await ai_service.generate_response(
-                    prompt=extraction_prompt,
-                    context={"task_type": "extraction_requirements_analysis", "use_cache": True}
-                )
-                
-                if extraction_response and "content" in extraction_response:
-                    parser = ResponseParser(ai_service=ai_service)
-                    extraction_requirements = await parser.extract_structured_data(
-                        extraction_response["content"],
-                        expected_schema={"type": "object"}
-                    )
-                    job_context["extraction_requirements"] = extraction_requirements
-                
-        except Exception as e:
-            print(f"Error enhancing intent with page context: {e}")
-    
-    return job_context
+    # Create a HuntingIntent
+    intent = HuntingIntent(
+        query=user_query,
+        output_schema=output_schema,
+        keywords=parsed_intent.get("keywords", []),
+        entities=parsed_intent.get("entities", [])
+    )
+
+    # Run the hunt
+    results = await universal_hunter.hunt(intent)
+
+    return results
 
 # Main function to run the application
 if __name__ == "__main__":

@@ -100,6 +100,11 @@ DEFAULT_MAX_CONCURRENT_REQUESTS = get_env_int("DEFAULT_MAX_CONCURRENT_REQUESTS",
 DEFAULT_MIN_DELAY = get_env_float("DEFAULT_MIN_DELAY", 0.5)
 DEFAULT_MAX_DELAY = get_env_float("DEFAULT_MAX_DELAY", 2.0)
 
+# Result Configuration
+DEFAULT_MIN_RESULTS = get_env_int("DEFAULT_MIN_RESULTS", 10)  # Minimum results to return
+DEFAULT_MAX_RESULTS = get_env_int("DEFAULT_MAX_RESULTS", 50)  # Maximum results to return
+DEFAULT_TARGET_RESULTS = get_env_int("DEFAULT_TARGET_RESULTS", 10)  # Target number of results
+
 # Browser Settings
 DEFAULT_USE_BROWSER = get_env_bool("DEFAULT_USE_BROWSER", True)
 DEFAULT_DISABLE_IMAGES = get_env_bool("DEFAULT_DISABLE_IMAGES", True)
